@@ -7,6 +7,7 @@ try:
     import shutil
     import base64
     import subprocess
+    import imgkit
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
@@ -24,10 +25,11 @@ try:
             self.pack()
             self.buttons = []
             self.create_buttons()
+            self.bingoFullPath = None
             self.bingoType = None
-            self.htmlFile = None
             self.wordsFile = None
             self.pictures = []
+            self.bingoCards = []
             self.historyPictures = []
             self.displayPictures = []
             self.words = []
@@ -46,11 +48,9 @@ try:
             self.oBindId = self.enable_binding("o", self.ctrl_o)
             self.nBindId = self.enable_binding("n", self.ctrl_n)
             self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.vBindId = self.enable_binding("v", self.ctrl_v)
 
             # Disable these because they are only valid when a .bingo file has been loaded.
             self.disable_binding("d", self.dBindId)
-            self.disable_binding("v", self.vBindId)
 
             # Find all the .bingo files and associated folders that are stored in the dict
             # and delete one if the other doesn't exist.
@@ -73,12 +73,15 @@ try:
                 pickler.dump(fileFolderDict)
             
 
-        def generate_html_card(self, cols, rows, freeSpace, pageBreak=True):
+        def generate_html_card(self, cardNum, cols, rows, freeSpace):
             """
-            Generates an HTML table representation of the bingo card for pictures.
-            Returns String of HTML code.
+            Generates an HTML file of the bingo card.
+            Then converts the HTML file into an image.
 
             Required Parameters:
+                cardNum: Integer
+                    The number of this card, used to generate distinct file names.
+                    
                 cols: Integer
                     The number of columns in the table.
 
@@ -87,23 +90,15 @@ try:
 
                 freeSpace: Boolean
                     Whether there is a "free space" in the center square of the table.
-
-            Optional Parameters:
-                pageBreak: Boolean
-                    Whether this table starts on a new page or not.
-                    Default: True
             """
-            log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace) + "pageBreak=" + str(pageBreak))
+            log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
             # Get a random sample of the words/pictures with which to fill in this card.
             if self.bingoType == "pictures":
                 ps = random.sample(self.historyPictures, cols * rows)
             elif self.bingoType == "words":
                 ps = random.sample(self.words, cols * rows)
                 
-            if pageBreak:
-                res = "<table class=\"newpage\">\n"
-            else:
-                res = "<table>\n"
+            res = "<table>\n"
                 
             for i, item in enumerate(ps):
                 if i % cols == 0:
@@ -121,8 +116,23 @@ try:
                     res += "\t</tr>\n"
                     
             res += "</table>\n"
-            
-            return res
+
+            # Save the HTML file.
+            self.htmlFile = self.bingoFullPath + "\\" + "bingo_card.html"
+            outFile = open(self.htmlFile, "w")
+            outFile.write(head)
+            outFile.write(res)
+            outFile.write(tail)
+            outFile.close()
+
+            # Convert the HTML file to an image.
+            imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\" + "bingo_card_" + str(cardNum) + ".jpg", config=config)
+
+            # Delete the HTML file.
+            os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
+
+            # Add the location of the image to what will be saved in the .bingo file.
+            self.bingoCards.append(self.bingoFullPath + "\\" + "bingo_card_" + str(cardNum) + ".jpg")
 
         # Resizes an image based on parameters
         def resize_image(self, folder, destFolder, picture, pictureNum, pictureType, maxSideSize):
@@ -218,7 +228,7 @@ try:
             pickler = open(bingoName, "wb")
 
             pickleDict = {
-                "html": self.htmlFile,
+                "bingoCards": self.bingoCards,
                 "words": self.words,
                 "historyPictures": self.historyPictures,
                 "displayPictures": self.displayPictures
@@ -232,7 +242,7 @@ try:
         def load_file(self):
             """
             Loads a .bingo file and sets the following variables in the Application:
-                self.htmlFile
+                self.bingoCards
                 self.words
                 self.historyPictures
                 self.displayPictures
@@ -249,7 +259,7 @@ try:
             pickler.close()
 
             # Set variables from the pickled dict.
-            self.htmlFile = pickleDict["html"]
+            self.bingoCards = pickleDict["bingoCards"]
             self.words = pickleDict["words"]
             self.historyPictures = pickleDict["historyPictures"]
             self.displayPictures = pickleDict["displayPictures"]
@@ -303,8 +313,9 @@ try:
                     i.place_forget()
                     
             self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
+            self.bingoFullPath = None
             self.bingoType = None
-            self.htmlFile = None
+            self.bingoCards = []
             self.wordsFile = None
             self.pictures = []
             self.historyPictures = []
@@ -318,14 +329,11 @@ try:
 
             self.nextImage["state"] = tk.DISABLED
 
-            fileMenu.entryconfig("View Bingo Cards", state=tk.DISABLED)
             fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
             
             self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.vBindId = self.enable_binding("v", self.ctrl_v)
 
             self.disable_binding("d", self.dBindId)
-            self.disable_binding("v", self.vBindId)
 
 
         def check_number_of_items(self):
@@ -423,9 +431,9 @@ try:
             return cards
 
 
-        def create_bingo_cards(self, freeSpace, cards, outFile):
+        def create_bingo_cards(self, freeSpace, cards):
             """
-            Creates the individual Bingo cards in the HTML file.
+            Creates the individual Bingo cards.
 
             Requird Parameters:
                 freeSpace: Boolean
@@ -433,11 +441,8 @@ try:
 
                 cards: Integer
                     The number of Bingo cards to create.
-
-                outFile: String
-                    The full path to the HTML file in which the cards will be created.
             """
-            log_status("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards) + ", outFile=" + str(outFile))
+            log_status("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
             columns = 5
             rows = 5
             
@@ -450,11 +455,8 @@ try:
             for c in range(cards):
                 self.progress["value"] = (c + 1) / cards
                 root.update_idletasks()
-                # Create a card and write it to the HTML file.
-                if c % 2 == 1:
-                    outFile.write(self.generate_html_card(columns, rows, freeSpace, pageBreak=True))
-                else:
-                    outFile.write(self.generate_html_card(columns, rows, freeSpace, pageBreak=False))
+                # Create a card.
+                self.generate_html_card(c, columns, rows, freeSpace)
 
             # Ditch the progress bar.
             self.progress.place_forget()
@@ -509,15 +511,15 @@ try:
             # Create a folder named after the .bingo file under the working_dir folder.
             # This is where the relevant files for this Bingo game will live.
             workingDirName = os.path.splitext(os.path.basename(dest))[0]
-            bingoFullPath = os.getcwd() + "\\working_dir\\" + workingDirName
+            self.bingoFullPath = os.getcwd() + "\\working_dir\\" + workingDirName
 
             # If it already exists, delete it.
-            if os.path.exists(bingoFullPath) and not os.path.isfile(bingoFullPath):
-                shutil.rmtree(bingoFullPath)
+            if os.path.exists(self.bingoFullPath) and not os.path.isfile(self.bingoFullPath):
+                shutil.rmtree(self.bingoFullPath)
 
             # If it doesn't exist, create it.
-            if not os.path.exists(bingoFullPath) and not os.path.isfile(bingoFullPath):
-                os.makedirs(bingoFullPath)
+            if not os.path.exists(self.bingoFullPath) and not os.path.isfile(self.bingoFullPath):
+                os.makedirs(self.bingoFullPath)
 
             # If we're generating cards, there is no game in progress and
             # we should not be able to ask for the next image/word.
@@ -544,7 +546,7 @@ try:
                     root.update_idletasks()
                     
                     # Smaller images to be in the history during play (also used for the bingo cards).
-                    newHistoryPicture = self.resize_image(items, bingoFullPath, picture, i, "history", 50)
+                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
                     if not newHistoryPicture:
                         self.reset()
                         log_status("    Returning after reset.")
@@ -553,7 +555,7 @@ try:
                     self.historyPictures.append(newHistoryPicture)
                     
                     # Large images for display when you click the "Display next image/word" button.
-                    newDisplayPicture = self.resize_image(items, bingoFullPath, picture, i, "display", 350)
+                    newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
                     if not newDisplayPicture:
                         self.reset()
                         log_status("    Returning after reset.")
@@ -565,16 +567,7 @@ try:
                 self.progress.place_forget()
                 self.progressLabel.place_forget()
 
-            # Create an HTML file that contains the Bingo cards.
-            # These can be copied into a program like Word to edit things (such as add a title).
-            self.htmlFile = bingoFullPath + "\\" + "bingo_cards.html"
-            outFile = open(self.htmlFile, "w")
-            outFile.write(head)
-
-            self.create_bingo_cards(freeSpace, cards, outFile)
-
-            outFile.write("</body></html>")
-            outFile.close()
+            self.create_bingo_cards(freeSpace, cards)
 
             # Save the dict again.
             self.save_dict_file(dest)
@@ -586,7 +579,7 @@ try:
         def prep_for_play(self):
             """
             Randomizes the lists of display items for playing Bingo.
-            Enables the button/menu item to view the bingo cards (open the HTML file)
+            Enables the button/menu item to view the bingo cards
             and display the next image or word.
             """
             log_status("Start of prep_for_play.")
@@ -597,11 +590,9 @@ try:
             # Enable the buttons/menus to view the bingo cards as well as display the next image or word.
             self.nextImage["state"] = tk.NORMAL
 
-            fileMenu.entryconfig("View Bingo Cards", state=tk.NORMAL)
             fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
             
             self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.vBindId = self.enable_binding("v", self.ctrl_v)
 
 
         def play_bingo(self):
@@ -697,23 +688,6 @@ try:
                 self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
                 self.gameInProgress = False
                 return
-
-
-        def view_bingo_cards(self):
-            """
-            Attempt to open the HTML file.  The first method should work in Windows.
-            The second method should work for Mac/Linux. If both fail, prompt the
-            user about where they can find the HTML file so they can open it themselves.
-            """
-            log_status("Start of view_bingo_cards.")
-            # Open the HTML file.
-            try:
-                os.startfile(self.htmlFile)
-            except AttributeError:
-                try:
-                    subprocess.call(["open", self.htmlFile])
-                except:
-                    self.popup("Couldn't open the file.\r\nYour Bingo cards file is\r\n" + self.htmlFile, button1Text="Ok")
                     
 
         def create_buttons(self):
@@ -824,17 +798,6 @@ try:
                     The tkinter Event that is the trigger.
             """
             self.generate_bingo_cards("pictures")
-
-
-        def ctrl_v(self, event):
-            """
-            Keyboard shortcut for opening the HTML file that contains the bingo cards.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            self.view_bingo_cards()
 
 
         def ctrl_o(self, event):
@@ -1058,6 +1021,11 @@ try:
             "\ttd { text-align: center; border: thin black solid; padding: 10px; width: 80px; }\n"
             "</style>\n</head>\n<body>\n")
 
+    tail = "</body></html>"
+
+    path_wkthmltoimage = r'wkhtmltopdf\bin\wkhtmltoimage.exe'
+    config = imgkit.config(wkhtmltoimage=path_wkthmltoimage)
+
     root = tk.Tk()
     canvas = tk.Canvas(root, width = 1000, height = 615)
     canvas.pack()
@@ -1069,7 +1037,6 @@ try:
     fileMenu.add_command(label="New Word Bingo Cards", command=lambda: app.generate_bingo_cards("words"), accelerator="Ctrl+W")
     fileMenu.add_command(label="New Picture Bingo Cards", command=lambda:app.generate_bingo_cards("pictures"), accelerator="Ctrl+P")
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
-    fileMenu.add_command(label="View Bingo Cards", command=app.view_bingo_cards, state=tk.DISABLED, accelerator="Ctrl+V")
     fileMenu.add_command(label="Display next image/word", command=lambda: app.display_next_image_or_word(), state=tk.DISABLED, accelerator="Ctrl+D")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
