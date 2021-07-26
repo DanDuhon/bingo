@@ -19,20 +19,18 @@ def log_status(status, writeType="a"):
 try:
     import random
     import datetime
-    import time
     import sys
     import os
     import shutil
     import base64
-    import subprocess
     import imgkit
+    import webbrowser
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
     from tkinter import ttk
     from PIL import Image, ImageTk
     import PIL
-    from pathlib import Path
     from math import ceil
 
 
@@ -48,6 +46,7 @@ try:
             self.wordsFile = None
             self.pictures = []
             self.bingoCards = []
+            self.cardPictures = []
             self.historyPictures = []
             self.displayPictures = []
             self.words = []
@@ -66,9 +65,11 @@ try:
             self.oBindId = self.enable_binding("o", self.ctrl_o)
             self.nBindId = self.enable_binding("n", self.ctrl_n)
             self.dBindId = self.enable_binding("d", self.ctrl_d)
+            self.cBindId = self.enable_binding("c", self.ctrl_c)
 
             # Disable these because they are only valid when a .bingo file has been loaded.
             self.disable_binding("d", self.dBindId)
+            self.disable_binding("c", self.cBindId)
 
             # Find all the .bingo files and associated folders that are stored in the dict
             # and delete one if the other doesn't exist.
@@ -112,7 +113,7 @@ try:
             log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
             # Get a random sample of the words/pictures with which to fill in this card.
             if self.bingoType == "pictures":
-                ps = random.sample(self.historyPictures, cols * rows)
+                ps = random.sample(self.cardPictures, cols * rows)
             elif self.bingoType == "words":
                 ps = random.sample(self.words, cols * rows)
                 
@@ -144,13 +145,18 @@ try:
             outFile.close()
 
             # Convert the HTML file to an image.
-            imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\" + "bingo_card_" + str(cardNum) + ".jpg", config=config)
+            imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg", config=config)
 
             # Delete the HTML file.
             os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
 
             # Add the location of the image to what will be saved in the .bingo file.
-            self.bingoCards.append(self.bingoFullPath + "\\" + "bingo_card_" + str(cardNum) + ".jpg")
+            self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
+
+
+        def open_bingo_cards_folder(self):
+            webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
+
 
         # Resizes an image based on parameters
         def resize_image(self, folder, destFolder, picture, pictureNum, pictureType, maxSideSize):
@@ -195,7 +201,7 @@ try:
                 img = img.resize((wSize, hSize), Image.ANTIALIAS)
 
                 # Save the resized image in this game's folder.
-                resizedFileName = destFolder + "/" + str(pictureNum) + "_" + pictureType + os.path.splitext(folder + "/" + picture)[1]
+                resizedFileName = destFolder + "/" + pictureType + "_pictures/" + str(pictureNum) + "_" + pictureType + os.path.splitext(folder + "/" + picture)[1]
                 img.save(resizedFileName)
                 
                 log_status("    Returning " + resizedFileName)
@@ -221,7 +227,7 @@ try:
                 return
 
             # Update the dict that tracks all file locations for this bingo game.
-            fileFolderDict[output.name] = os.getcwd() + "//working_dir//" + os.path.splitext(os.path.basename(output.name))[0]
+            fileFolderDict[output.name] = os.path.dirname(__file__) + "//working_dir//" + os.path.splitext(os.path.basename(output.name))[0]
             with open("fileFolderDict.p", "wb") as f:
                 pickler = pickle.Pickler(f)
                 pickler.dump(fileFolderDict)
@@ -249,7 +255,8 @@ try:
                 "bingoCards": self.bingoCards,
                 "words": self.words,
                 "historyPictures": self.historyPictures,
-                "displayPictures": self.displayPictures
+                "displayPictures": self.displayPictures,
+                "workLocation": self.bingoFullPath
                 }
 
             pickle.dump(pickleDict, pickler, -1)
@@ -265,6 +272,7 @@ try:
                 self.historyPictures
                 self.displayPictures
                 self.bingoType
+                self.bingoFullPath
             """
             log_status("Start of load_file.")
             # Prompt the user for a .bingo file to load.
@@ -281,6 +289,7 @@ try:
             self.words = pickleDict["words"]
             self.historyPictures = pickleDict["historyPictures"]
             self.displayPictures = pickleDict["displayPictures"]
+            self.bingoFullPath = pickleDict["workLocation"]
 
             if self.words:
                 self.bingoType = "words"
@@ -348,10 +357,13 @@ try:
             self.nextImage["state"] = tk.DISABLED
 
             fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
+            fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
             
             self.dBindId = self.enable_binding("d", self.ctrl_d)
+            self.cBindId = self.enable_binding("c", self.ctrl_c)
 
             self.disable_binding("d", self.dBindId)
+            self.disable_binding("c", self.cBindId)
 
 
         def check_number_of_items(self):
@@ -481,6 +493,26 @@ try:
             self.progressLabel.place_forget()
 
 
+        def delete_create_folder(self, folderName):
+            """
+            Looks for a folder.  If it exists, delete it.  Then if it doesn't exist, create it.
+            
+            Required Parameters:
+                folderName: String
+                    The folder path to delete/create.
+            """
+            log_status("Start of delete_create_folder: folderName=" + str(folderName))
+
+            # If it already exists, delete it.
+            if os.path.exists(folderName) and not os.path.isfile(folderName):
+                log_status("Deleting " + str(folderName))
+                shutil.rmtree(folderName)
+
+            # If it doesn't exist, create it.
+            if not os.path.exists(folderName) and not os.path.isfile(folderName):
+                log_status("Creating " + str(folderName))
+                os.makedirs(folderName)
+
         def generate_bingo_cards(self, bingoType=None):
             """
             Creates a new set of bingo cards.
@@ -529,15 +561,15 @@ try:
             # Create a folder named after the .bingo file under the working_dir folder.
             # This is where the relevant files for this Bingo game will live.
             workingDirName = os.path.splitext(os.path.basename(dest))[0]
-            self.bingoFullPath = os.getcwd() + "\\working_dir\\" + workingDirName
+            self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
+            self.delete_create_folder(self.bingoFullPath)
 
-            # If it already exists, delete it.
-            if os.path.exists(self.bingoFullPath) and not os.path.isfile(self.bingoFullPath):
-                shutil.rmtree(self.bingoFullPath)
-
-            # If it doesn't exist, create it.
-            if not os.path.exists(self.bingoFullPath) and not os.path.isfile(self.bingoFullPath):
-                os.makedirs(self.bingoFullPath)
+            # Create subfolders to house the different sizes of pictures.
+            if bingoType == "pictures":
+                self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
+                self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
+                self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
+                self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
 
             # If we're generating cards, there is no game in progress and
             # we should not be able to ask for the next image/word.
@@ -563,8 +595,17 @@ try:
                     self.progress["value"] = i / len(self.pictures)
                     root.update_idletasks()
                     
-                    # Smaller images to be in the history during play (also used for the bingo cards).
-                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 150)
+                    # Medium images to be in the bingo cards.
+                    newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
+                    if not newCardPicture:
+                        self.reset()
+                        log_status("    Returning after reset.")
+                        return
+                    
+                    self.cardPictures.append(newCardPicture)
+                    
+                    # Small images to be in the history during play.
+                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
                     if not newHistoryPicture:
                         self.reset()
                         log_status("    Returning after reset.")
@@ -609,8 +650,10 @@ try:
             self.nextImage["state"] = tk.NORMAL
 
             fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+            fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
             
             self.dBindId = self.enable_binding("d", self.ctrl_d)
+            self.cBindId = self.enable_binding("c", self.ctrl_c)
 
 
         def play_bingo(self):
@@ -647,8 +690,9 @@ try:
                 items = self.displayPictures
                 
                 # Get the next image.
-                self.calledItems.append(self.displayPictures.pop(0))
-                img = ImageTk.PhotoImage(Image.open(self.calledItems[-1]))
+                calledItem = self.displayPictures.pop(0)
+                self.calledItems.append(calledItem)
+                img = ImageTk.PhotoImage(Image.open(calledItem))
 
                 # If an image has already been displayed, delete it so we're not just piling images on top of one another.
                 if len(self.calledItems) > 1:
@@ -659,7 +703,7 @@ try:
                 canvas.image = img
 
                 # Put the called images into the history.
-                hImg = ImageTk.PhotoImage(Image.open(self.calledItems[-1].replace("_display.", "_history.")))
+                hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/").replace("_display.", "_history.")))
                 hi = tk.Label(image=hImg)
                 hi.image = hImg
 
@@ -862,6 +906,17 @@ try:
             self.display_next_image_or_word()
 
 
+        def ctrl_c(self, event):
+            """
+            Keyboard shortcut for displaying the next item while playing bingo.
+
+            Required Parameters:
+                event: tkinter.Event
+                    The tkinter Event that is the trigger.
+            """
+            self.open_bingo_cards_folder()
+
+
         def disable_binding(self, bindKey, bindId):
             """
             Disables a keyboard shortcut.
@@ -972,14 +1027,14 @@ try:
     fileFolderDict = {}
 
     # If the working_dir folder doesn't exist, create it.
-    if not os.path.exists(os.getcwd() + "//working_dir"):
+    if not os.path.exists(os.path.dirname(__file__) + "//working_dir"):
         log_status("Creating working_dir folder.")
-        os.makedirs("working_dir")
+        os.makedirs(os.path.dirname(__file__) + "//working_dir")
 
     # If the fileFolderDict.p file doesn't exist, create it with an empty dictionary.
-    if not os.path.exists(os.getcwd() + "//fileFolderDict.p"):
+    if not os.path.exists(os.path.dirname(__file__) + "//fileFolderDict.p"):
         log_status("Creating default fileFolderDict.p.")
-        pickle.dump(fileFolderDict, open(os.getcwd() + "//fileFolderDict.p", "wb"), -1)
+        pickle.dump(fileFolderDict, open(os.path.dirname(__file__) + "//fileFolderDict.p", "wb"), -1)
 
     # Load the data in fileFolderDict.p.
     if os.path.getsize("fileFolderDict.p") > 0:
@@ -1023,7 +1078,7 @@ try:
 
     tail = "</body></html>"
 
-    path_wkthmltoimage = r'wkhtmltopdf\bin\wkhtmltoimage.exe'
+    path_wkthmltoimage = os.path.dirname(__file__) + "\\" + r'wkhtmltopdf\bin\wkhtmltoimage.exe'
     config = imgkit.config(wkhtmltoimage=path_wkthmltoimage)
 
     root = tk.Tk()
@@ -1038,6 +1093,7 @@ try:
     fileMenu.add_command(label="New Picture Bingo Cards", command=lambda:app.generate_bingo_cards("pictures"), accelerator="Ctrl+P")
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
     fileMenu.add_command(label="Display next image/word", command=lambda: app.display_next_image_or_word(), state=tk.DISABLED, accelerator="Ctrl+D")
+    fileMenu.add_command(label="Open bingo cards folder", command=lambda: app.open_bingo_cards_folder(), state=tk.DISABLED, accelerator="Ctrl+C")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
     menuBar.add_cascade(label="File", menu=fileMenu)
