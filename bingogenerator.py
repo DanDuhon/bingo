@@ -1,3 +1,21 @@
+def log_status(status, writeType="a"):
+    """
+    Logs events to a log file.
+
+    Required Parameters:
+        status: String
+            The text to write in the log file.
+
+    Optional Parameters:
+        writeType: String
+            The write type with which to open the file.
+            Default: "a" (append)
+    """
+    logFile = open("log.txt", writeType)
+    logFile.write(str(datetime.datetime.now()) + ": " + status + "\n")
+    logFile.close()
+
+
 try:
     import random
     import datetime
@@ -546,7 +564,7 @@ try:
                     root.update_idletasks()
                     
                     # Smaller images to be in the history during play (also used for the bingo cards).
-                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
+                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 150)
                     if not newHistoryPicture:
                         self.reset()
                         log_status("    Returning after reset.")
@@ -949,24 +967,6 @@ try:
             self.top.destroy()
 
 
-    def log_status(status, writeType="a"):
-        """
-        Logs events to a log file.
-
-        Required Parameters:
-            status: String
-                The text to write in the log file.
-
-        Optional Parameters:
-            writeType: String
-                The write type with which to open the file.
-                Default: "a" (append)
-        """
-        logFile = open("log.txt", writeType)
-        logFile.write(str(datetime.datetime.now()) + ": " + status + "\n")
-        logFile.close()
-
-
     log_status("Start", writeType="w")
 
     fileFolderDict = {}
@@ -1014,7 +1014,7 @@ try:
             "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n"
             "<title>Bingo Cards</title>\n"
             "<style type=\"text/css\">\n"
-            "\tbody { font-size: 14px; }\n"
+            "\tbody { font-size: 30px; }\n"
             "\ttable { margin: 20px auto; border-spacing: 2px; }\n"
             "\t.newpage { page-break-after:always; }\n"
             "\ttr { height: 80px; }\n"
