@@ -569,7 +569,8 @@ try:
                 self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
                 self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
                 self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
-                self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
+                
+            self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
 
             # If we're generating cards, there is no game in progress and
             # we should not be able to ask for the next image/word.
