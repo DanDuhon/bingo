@@ -25,6 +25,7 @@ try:
     import base64
     import imgkit
     import webbrowser
+    import logging
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
@@ -36,60 +37,66 @@ try:
 
     class Application(tk.Frame):
         def __init__(self, master=None):
-            log_status("Initiating application.")
-            tk.Frame.__init__(self, master)
-            self.pack()
-            self.buttons = []
-            self.create_buttons()
-            self.bingoFullPath = None
-            self.bingoType = None
-            self.wordsFile = None
-            self.pictures = []
-            self.bingoCards = []
-            self.cardPictures = []
-            self.historyPictures = []
-            self.displayPictures = []
-            self.words = []
-            self.calledItems = []
-            self.xOffset = 0
-            self.yOffset = 0
-            self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
-            self.gameInProgress = False
-            self.historyImages = []
-            self.historyCanvas = []
+            try:
+                log_status("Initiating application.")
+                tk.Frame.__init__(self, master)
+                self.pack()
+                self.buttons = []
+                self.create_buttons()
+                self.bingoFullPath = None
+                self.bingoType = None
+                self.wordsFile = None
+                self.pictures = []
+                self.bingoCards = []
+                self.cardPictures = []
+                self.historyPictures = []
+                self.displayPictures = []
+                self.words = []
+                self.calledItems = []
+                self.xOffset = 0
+                self.yOffset = 0
+                self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
+                self.gameInProgress = False
+                self.historyImages = []
+                self.historyCanvas = []
 
-            # Create the keyboard shortcuts.
-            self.wBindId = self.enable_binding("w", self.ctrl_w)
-            self.pBindId = self.enable_binding("p", self.ctrl_p)
-            self.qBindId = self.enable_binding("q", self.ctrl_q)
-            self.oBindId = self.enable_binding("o", self.ctrl_o)
-            self.nBindId = self.enable_binding("n", self.ctrl_n)
-            self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.cBindId = self.enable_binding("c", self.ctrl_c)
+                # Create the keyboard shortcuts.
+                self.wBindId = self.enable_binding("w", self.ctrl_w)
+                self.pBindId = self.enable_binding("p", self.ctrl_p)
+                self.qBindId = self.enable_binding("q", self.ctrl_q)
+                self.oBindId = self.enable_binding("o", self.ctrl_o)
+                self.nBindId = self.enable_binding("n", self.ctrl_n)
+                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                self.cBindId = self.enable_binding("c", self.ctrl_c)
+                self.bBindId = self.enable_binding("b", self.ctrl_b)
 
-            # Disable these because they are only valid when a .bingo file has been loaded.
-            self.disable_binding("d", self.dBindId)
-            self.disable_binding("c", self.cBindId)
+                # Disable these because they are only valid when a .bingo file has been loaded.
+                self.disable_binding("d", self.dBindId)
+                self.disable_binding("c", self.cBindId)
+                self.disable_binding("b", self.bBindId)
 
-            # Find all the .bingo files and associated folders that are stored in the dict
-            # and delete one if the other doesn't exist.
-            keysToDelete = []
-            for k, v in fileFolderDict.items():
-                if not os.path.exists(k) or not os.path.exists(v):
-                    if os.path.exists(k):
-                        os.remove(k)
-                    if os.path.exists(v):
-                        shutil.rmtree(v)
+                # Find all the .bingo files and associated folders that are stored in the dict
+                # and delete one if the other doesn't exist.
+                keysToDelete = []
+                for k, v in fileFolderDict.items():
+                    if not os.path.exists(k) or not os.path.exists(v):
+                        if os.path.exists(k):
+                            os.remove(k)
+                        if os.path.exists(v):
+                            shutil.rmtree(v)
 
-                    keysToDelete.append(k)
+                        keysToDelete.append(k)
 
-            for k in keysToDelete:
-                del fileFolderDict[k]
+                for k in keysToDelete:
+                    del fileFolderDict[k]
 
-            # Save the dictionary in case there were any changes.
-            with open("fileFolderDict.p", "wb") as f:
-                pickler = pickle.Pickler(f)
-                pickler.dump(fileFolderDict)
+                # Save the dictionary in case there were any changes.
+                with open("fileFolderDict.p", "wb") as f:
+                    pickler = pickle.Pickler(f)
+                    pickler.dump(fileFolderDict)
+            except:
+                log_status(logging.exception("message"))
+                raise
             
 
         def generate_html_card(self, cardNum, cols, rows, freeSpace):
@@ -110,52 +117,64 @@ try:
                 freeSpace: Boolean
                     Whether there is a "free space" in the center square of the table.
             """
-            log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
-            # Get a random sample of the words/pictures with which to fill in this card.
-            if self.bingoType == "pictures":
-                ps = random.sample(self.cardPictures, cols * rows)
-            elif self.bingoType == "words":
-                ps = random.sample(self.words, cols * rows)
-                
-            res = "<table>\n"
-                
-            for i, item in enumerate(ps):
-                if i % cols == 0:
-                    res += "\t<tr>\n"
-                    
-                if i == 12 and freeSpace:
-                    res += "\r\<td>FREE SPACE</td>\n"
-                elif self.bingoType == "pictures":
-                    # Embed the picture in the HTML file so it can be opened without the picture files existing.
-                    res += "\t\t<td><img src=\"data:image/png;base64,{0}\"></td>\n".format(base64.b64encode(open(item, "rb").read()).decode("utf-8"))
+            try:
+                log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
+                # Get a random sample of the words/pictures with which to fill in this card.
+                if self.bingoType == "pictures":
+                    ps = random.sample(self.cardPictures, cols * rows)
                 elif self.bingoType == "words":
-                    res += "\t\t<td>" + item + "</td>\n"
+                    ps = random.sample(self.words, cols * rows)
                     
-                if i % cols == cols - 1:
-                    res += "\t</tr>\n"
+                res = "<table>\n"
                     
-            res += "</table>\n"
+                for i, item in enumerate(ps):
+                    if i % cols == 0:
+                        res += "\t<tr>\n"
+                        
+                    if i == 12 and freeSpace:
+                        res += "\r\<td>FREE SPACE</td>\n"
+                    elif self.bingoType == "pictures":
+                        # Embed the picture in the HTML file so it can be opened without the picture files existing.
+                        res += "\t\t<td><img src=\"data:image/png;base64,{0}\"></td>\n".format(base64.b64encode(open(item, "rb").read()).decode("utf-8"))
+                    elif self.bingoType == "words":
+                        res += "\t\t<td>" + item + "</td>\n"
+                        
+                    if i % cols == cols - 1:
+                        res += "\t</tr>\n"
+                        
+                res += "</table>\n"
 
-            # Save the HTML file.
-            self.htmlFile = self.bingoFullPath + "\\" + "bingo_card.html"
-            outFile = open(self.htmlFile, "w")
-            outFile.write(head)
-            outFile.write(res)
-            outFile.write(tail)
-            outFile.close()
+                # Save the HTML file.
+                self.htmlFile = self.bingoFullPath + "\\" + "bingo_card.html"
+                outFile = open(self.htmlFile, "w")
+                outFile.write(head)
+                outFile.write(res)
+                outFile.write(tail)
+                outFile.close()
 
-            # Convert the HTML file to an image.
-            imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg", config=config)
+                # Convert the HTML file to an image.
+                imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg", config=config)
 
-            # Delete the HTML file.
-            os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
+                # Delete the HTML file.
+                os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
 
-            # Add the location of the image to what will be saved in the .bingo file.
-            self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
+                # Add the location of the image to what will be saved in the .bingo file.
+                self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def open_bingo_cards_folder(self):
-            webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
+            """
+            Opens the folder that contains the bingo cards, in case the user wants
+            to view or print them.
+            """
+            try:
+                webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         # Resizes an image based on parameters
@@ -183,8 +202,8 @@ try:
                 maxSideSize: Integer
                     The length in pixels of the longest side of the resized image.
             """
-            log_status("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize))
             try:
+                log_status("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize))
                 img = Image.open(folder + "/" + picture)
                 # See whether the height or width of the image is larger.
                 # The larger side is scaled to the maxSideSize.
@@ -211,6 +230,7 @@ try:
                 log_status("    Returning None")
                 return None
             except:
+                log_status(logging.exception("message"))
                 raise
 
 
@@ -219,24 +239,29 @@ try:
             Saves a .bingo file so this game can be loaded later.
             Returns a String containing the file name.
             """
-            log_status("Start of save_bingo_file.")
-            # Prompt the user to save the .bingo file.
-            output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".bingo")
+            try:
+                log_status("Start of save_bingo_file.")
+                self.bingoTypePopup = self.popup("First save a file that will contain the information for this bingo game.", button1Text="Ok")
+                # Prompt the user to save the .bingo file.
+                output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".bingo")
 
-            if not output:
-                return
+                if not output:
+                    return
 
-            # Update the dict that tracks all file locations for this bingo game.
-            fileFolderDict[output.name] = os.path.dirname(__file__) + "//working_dir//" + os.path.splitext(os.path.basename(output.name))[0]
-            with open("fileFolderDict.p", "wb") as f:
-                pickler = pickle.Pickler(f)
-                pickler.dump(fileFolderDict)
+                # Update the dict that tracks all file locations for this bingo game.
+                fileFolderDict[output.name] = os.path.dirname(__file__) + "//working_dir//" + os.path.splitext(os.path.basename(output.name))[0]
+                with open("fileFolderDict.p", "wb") as f:
+                    pickler = pickle.Pickler(f)
+                    pickler.dump(fileFolderDict)
 
-            # Update the dict that tracks all file locations for this bingo game.
-            self.save_dict_file(output.name)
+                # Update the dict that tracks all file locations for this bingo game.
+                self.save_dict_file(output.name)
 
-            log_status("    Returning " + output.name)
-            return output.name
+                log_status("    Returning " + output.name)
+                return output.name
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def save_dict_file(self, bingoName):
@@ -247,21 +272,25 @@ try:
                 bingoName: String
                     The file name of the .bingo file.
             """
-            log_status("Start of save_dict_file: bingoName=" + bingoName)
-            # Save the dict for this Bingo game that tracks locations of files.
-            pickler = open(bingoName, "wb")
+            try:
+                log_status("Start of save_dict_file: bingoName=" + bingoName)
+                # Save the dict for this Bingo game that tracks locations of files.
+                pickler = open(bingoName, "wb")
 
-            pickleDict = {
-                "bingoCards": self.bingoCards,
-                "words": self.words,
-                "historyPictures": self.historyPictures,
-                "displayPictures": self.displayPictures,
-                "workLocation": self.bingoFullPath
-                }
+                pickleDict = {
+                    "bingoCards": self.bingoCards,
+                    "words": self.words,
+                    "historyPictures": self.historyPictures,
+                    "displayPictures": self.displayPictures,
+                    "workLocation": self.bingoFullPath
+                    }
 
-            pickle.dump(pickleDict, pickler, -1)
+                pickle.dump(pickleDict, pickler, -1)
 
-            pickler.close()
+                pickler.close()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def load_file(self):
@@ -274,30 +303,34 @@ try:
                 self.bingoType
                 self.bingoFullPath
             """
-            log_status("Start of load_file.")
-            # Prompt the user for a .bingo file to load.
-            loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
-            if not loadFile:
-                return False
+            try:
+                log_status("Start of load_file.")
+                # Prompt the user for a .bingo file to load.
+                loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
+                if not loadFile:
+                    return False
 
-            pickler = open(loadFile, "rb")
-            pickleDict = pickle.load(pickler)
-            pickler.close()
+                pickler = open(loadFile, "rb")
+                pickleDict = pickle.load(pickler)
+                pickler.close()
 
-            # Set variables from the pickled dict.
-            self.bingoCards = pickleDict["bingoCards"]
-            self.words = pickleDict["words"]
-            self.historyPictures = pickleDict["historyPictures"]
-            self.displayPictures = pickleDict["displayPictures"]
-            self.bingoFullPath = pickleDict["workLocation"]
+                # Set variables from the pickled dict.
+                self.bingoCards = pickleDict["bingoCards"]
+                self.words = pickleDict["words"]
+                self.historyPictures = pickleDict["historyPictures"]
+                self.displayPictures = pickleDict["displayPictures"]
+                self.bingoFullPath = pickleDict["workLocation"]
 
-            if self.words:
-                self.bingoType = "words"
-            elif self.displayPictures:
-                self.bingoType = "pictures"
+                if self.words:
+                    self.bingoType = "words"
+                elif self.displayPictures:
+                    self.bingoType = "pictures"
 
-            log_status("    Returning True")
-            return True
+                log_status("    Returning True")
+                return True
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def interrupt_confirm(self):
@@ -307,22 +340,26 @@ try:
             If there is, display a popup window asking the user to confirm whether
             they want to interrupt the game in progress.
             """
-            log_status("Start of interrupt_confirm.")
-            # Check to see if there's a game in progress.
-            # If there is, prompt the user to confirm they want to stop the game.
-            if self.gameInProgress:
-                self.confirmPopup = self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No")
-                interrupt = self.interrupt_value()
+            try:
+                log_status("Start of interrupt_confirm.")
+                # Check to see if there's a game in progress.
+                # If there is, prompt the user to confirm they want to stop the game.
+                if self.gameInProgress:
+                    self.confirmPopup = self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No")
+                    interrupt = self.interrupt_value()
 
-                if not interrupt:
-                    log_status("    Returning False")
-                    return False
-                else:
-                    log_status("    Returning True")
-                    return True
+                    if not interrupt:
+                        log_status("    Returning False")
+                        return False
+                    else:
+                        log_status("    Returning True")
+                        return True
 
-            log_status("    Returning True")
-            return True
+                log_status("    Returning True")
+                return True
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def reset(self):
@@ -331,39 +368,47 @@ try:
             as if the program had just been opened, such that nothing will interfere
             with a different operation than was previously in progress.
             """
-            log_status("Start of reset.")
-            # Reset everything. All variables, buttons, menu items, etc.
-            canvas.delete("all")
-            
-            if self.historyImages:
-                for i in self.historyImages:
-                    i.place_forget()
-                    
-            self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
-            self.bingoFullPath = None
-            self.bingoType = None
-            self.bingoCards = []
-            self.wordsFile = None
-            self.pictures = []
-            self.historyPictures = []
-            self.displayPictures = []
-            self.words = []
-            self.calledItems = []
-            self.xOffset = 0
-            self.yOffset = 0
-            self.gameInProgress = False
-            self.historyImages = []
+            try:
+                log_status("Start of reset.")
+                # Reset everything. All variables, buttons, menu items, etc.
+                canvas.delete("all")
+                
+                if self.historyImages:
+                    for i in self.historyImages:
+                        i.place_forget()
+                        
+                self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
+                self.bingoFullPath = None
+                self.bingoType = None
+                self.bingoCards = []
+                self.wordsFile = None
+                self.pictures = []
+                self.historyPictures = []
+                self.displayPictures = []
+                self.words = []
+                self.calledItems = []
+                self.xOffset = 0
+                self.yOffset = 0
+                self.gameInProgress = False
+                self.historyImages = []
 
-            self.nextImage["state"] = tk.DISABLED
+                self.nextImage["state"] = tk.DISABLED
+                self.previousImage["state"] = tk.DISABLED
 
-            fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
-            fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
-            
-            self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.cBindId = self.enable_binding("c", self.ctrl_c)
+                fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
+                fileMenu.entryconfig("Display last image/word", state=tk.DISABLED)
+                fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
+                
+                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                self.cBindId = self.enable_binding("c", self.ctrl_c)
+                self.bBindId = self.enable_binding("b", self.ctrl_b)
 
-            self.disable_binding("d", self.dBindId)
-            self.disable_binding("c", self.cBindId)
+                self.disable_binding("d", self.dBindId)
+                self.disable_binding("c", self.cBindId)
+                self.disable_binding("b", self.bBindId)
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def check_number_of_items(self):
@@ -377,59 +422,65 @@ try:
             
             Returns a String of the path to the folder/file.
             """
-            log_status("Start of check_number_of_items.")
-            if self.bingoType == "pictures":
-                # Prompt the user for a folder of images to use.
-                while True:
-                    folder = filedialog.askdirectory(title="Select the folders the pictures are in.")
-                    if not folder:
-                        log_status("    Returning False")
-                        return None
+            try:
+                log_status("Start of check_number_of_items.")
+                if self.bingoType == "pictures":
+                    self.bingoTypePopup = self.popup("Now choose the folder that contains the pictures to use.", button1Text="Ok")
+                    # Prompt the user for a folder of images to use.
+                    while True:
+                        folder = filedialog.askdirectory(title="Select the folders the pictures are in.")
+                        if not folder:
+                            log_status("    Returning False")
+                            return None
 
-                    # Set the pictures to the list of files in the folder.
-                    self.pictures = [file for file in os.listdir(folder) if os.path.isfile(os.path.join(folder, file))]
+                        # Set the pictures to the list of files in the folder.
+                        self.pictures = [file for file in os.listdir(folder) if os.path.isfile(os.path.join(folder, file))]
 
-                    # Each square has to have a different picture, so check to see if there are enough.
-                    if len(self.pictures) < 25:
-                        self.popup("Your folder needs to have at least 25 pictures in it!", button1Text="Ok")
-                        continue
-                    # Unless I make a fancier way of dealing with history, the screen space dictates how many files you can have.
-                    # Bingo is traditionally 75 possibilities, so this should be plenty.
-                    elif len(self.pictures) > 95:
-                        self.popup("Sorry, this program can only handle up to 95 pictures.\r\nPlease remove some images from the folder and try again.", button1Text="Ok")
-                        continue
-                    
-                    break
+                        # Each square has to have a different picture, so check to see if there are enough.
+                        if len(self.pictures) < 25:
+                            self.popup("Your folder needs to have at least 25 pictures in it!", button1Text="Ok")
+                            continue
+                        # Unless I make a fancier way of dealing with history, the screen space dictates how many files you can have.
+                        # Bingo is traditionally 75 possibilities, so this should be plenty.
+                        elif len(self.pictures) > 95:
+                            self.popup("Sorry, this program can only handle up to 95 pictures.\r\nPlease remove some images from the folder and try again.", button1Text="Ok")
+                            continue
+                        
+                        break
 
-                log_status("    Returning " + folder)
-                return folder
-            elif self.bingoType == "words":
-                while True:
-                    # Prompt the user for a file that contains the words to use.
-                    file = filedialog.askopenfilename(title="Select the file the words are in.", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
-                    if not file:
-                        log_status("    Returning False")
-                        return None
+                    log_status("    Returning " + folder)
+                    return folder
+                elif self.bingoType == "words":
+                    self.bingoTypePopup = self.popup("Now choose the file that contains the words to use.", button1Text="Ok")
+                    while True:
+                        # Prompt the user for a file that contains the words to use.
+                        file = filedialog.askopenfilename(title="Select the file the words are in.", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
+                        if not file:
+                            log_status("    Returning False")
+                            return None
 
-                    f = open(file, "r").readlines()
+                        f = open(file, "r").readlines()
 
-                    # Only take unique words. No blanks.
-                    self.words = list(set([word.replace("\r", "").replace("\n", "") for word in f if word.strip()]))
+                        # Only take unique words. No blanks.
+                        self.words = list(set([word.replace("\r", "").replace("\n", "") for word in f if word.strip()]))
 
-                    # Each square has to have a different word, so check to see if there are enough.
-                    if len(self.words) < 25:
-                        self.popup("Your words file must have at least 25 unique words in it (one word per line)!", button1Text="Ok")
-                        continue
-                    # Unless I make a fancier way of dealing with history, the screen space dictates how many words you can have.
-                    # Bingo is traditionally 75 possibilities, so this should be plenty.
-                    elif len(self.words) > 105:
-                        self.popup("Sorry, this program can only handle up to 105 words.\r\nPlease remove some words from the file and try again.", button1Text="Ok")
-                        continue
-                    
-                    break
+                        # Each square has to have a different word, so check to see if there are enough.
+                        if len(self.words) < 25:
+                            self.popup("Your words file must have at least 25 unique words in it (one word per line)!", button1Text="Ok")
+                            continue
+                        # Unless I make a fancier way of dealing with history, the screen space dictates how many words you can have.
+                        # Bingo is traditionally 75 possibilities, so this should be plenty.
+                        elif len(self.words) > 105:
+                            self.popup("Sorry, this program can only handle up to 105 words.\r\nPlease remove some words from the file and try again.", button1Text="Ok")
+                            continue
+                        
+                        break
 
-                log_status("    Returning " + file)
-                return file
+                    log_status("    Returning " + file)
+                    return file
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def get_number_of_cards(self):
@@ -437,28 +488,32 @@ try:
             Prompts the user to enter the number of Bingo cards they wish to create.
             Returns an Integer of the number of cards.
             """
-            log_status("Start of get_number_of_cards.")
-            # Prompt the user to enter the number of cards they want to create.
-            # Must be a positive whole number.
-            while True:
-                self.cardsPopup = self.popup("Enter the number of Bingo cards to generate.", entry=True, button1Text="Ok")
-                
-                try:
-                    cards = int(self.cards_value())
-                except ValueError:
-                    self.popup("It has to be a positive whole number!", button1Text="Ok")
-                    continue
-                except:
-                    raise
+            try:
+                log_status("Start of get_number_of_cards.")
+                # Prompt the user to enter the number of cards they want to create.
+                # Must be a positive whole number.
+                while True:
+                    self.cardsPopup = self.popup("Enter the number of Bingo cards to generate.", entry=True, button1Text="Ok")
+                    
+                    try:
+                        cards = int(self.cards_value())
+                    except ValueError:
+                        self.popup("It has to be a positive whole number!", button1Text="Ok")
+                        continue
+                    except:
+                        raise
 
-                if cards <= 0:
-                    self.popup("You need at least one card!", button1Text="Ok")
-                    continue
+                    if cards <= 0:
+                        self.popup("You need at least one card!", button1Text="Ok")
+                        continue
 
-                break
+                    break
 
-            log_status("    Returning " + str(cards))
-            return cards
+                log_status("    Returning " + str(cards))
+                return cards
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def create_bingo_cards(self, freeSpace, cards):
@@ -472,25 +527,29 @@ try:
                 cards: Integer
                     The number of Bingo cards to create.
             """
-            log_status("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
-            columns = 5
-            rows = 5
-            
-            # Since I don't know how long this could take, display a progress bar.
-            self.progressLabel = tk.Label(root, text="Creating bingo cards...")
-            self.progressLabel.place(x=450, y=530)
-            self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-            self.progress.place(x=450,y=550)
+            try:
+                log_status("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
+                columns = 5
+                rows = 5
+                
+                # Since I don't know how long this could take, display a progress bar.
+                self.progressLabel = tk.Label(root, text="Creating bingo cards...")
+                self.progressLabel.place(x=450, y=530)
+                self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
+                self.progress.place(x=450,y=550)
 
-            for c in range(cards):
-                self.progress["value"] = (c + 1) / cards
-                root.update_idletasks()
-                # Create a card.
-                self.generate_html_card(c, columns, rows, freeSpace)
+                for c in range(cards):
+                    self.progress["value"] = (c + 1) / cards
+                    root.update_idletasks()
+                    # Create a card.
+                    self.generate_html_card(c, columns, rows, freeSpace)
 
-            # Ditch the progress bar.
-            self.progress.place_forget()
-            self.progressLabel.place_forget()
+                # Ditch the progress bar.
+                self.progress.place_forget()
+                self.progressLabel.place_forget()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def delete_create_folder(self, folderName):
@@ -501,17 +560,22 @@ try:
                 folderName: String
                     The folder path to delete/create.
             """
-            log_status("Start of delete_create_folder: folderName=" + str(folderName))
+            try:
+                log_status("Start of delete_create_folder: folderName=" + str(folderName))
 
-            # If it already exists, delete it.
-            if os.path.exists(folderName) and not os.path.isfile(folderName):
-                log_status("Deleting " + str(folderName))
-                shutil.rmtree(folderName)
+                # If it already exists, delete it.
+                if os.path.exists(folderName) and not os.path.isfile(folderName):
+                    log_status("Deleting " + str(folderName))
+                    shutil.rmtree(folderName)
 
-            # If it doesn't exist, create it.
-            if not os.path.exists(folderName) and not os.path.isfile(folderName):
-                log_status("Creating " + str(folderName))
-                os.makedirs(folderName)
+                # If it doesn't exist, create it.
+                if not os.path.exists(folderName) and not os.path.isfile(folderName):
+                    log_status("Creating " + str(folderName))
+                    os.makedirs(folderName)
+            except:
+                log_status(logging.exception("message"))
+                raise
+
 
         def generate_bingo_cards(self, bingoType=None):
             """
@@ -522,118 +586,123 @@ try:
                     The type of bingo cards to create (words or pictures).
                     Default: None
             """
-            log_status("Start of generate_bingo_cards: bingoType=" + str(bingoType))
-            # Check to see if we're interrupting a game by doing this.
-            if not self.interrupt_confirm():
-                return
+            try:
+                log_status("Start of generate_bingo_cards: bingoType=" + str(bingoType))
+                # Check to see if we're interrupting a game by doing this.
+                if not self.interrupt_confirm():
+                    return
 
-            # Reset everything.
-            self.reset()
-
-            # Save a .bingo file to store the locations of important files in the working_dir folder.
-            dest = self.save_bingo_file()
-
-            # If we chose not to save, reset everything and return.
-            if not dest:
+                # Reset everything.
                 self.reset()
-                return
 
-            # If we got here via a generic "New" command, prompt the user for which type of Bingo.
-            if not bingoType:
-                self.bingoTypePopup = self.popup("Which type of Bingo cards do you want to create?", button1Text="Words", button2Text="Pictures")
-                if self.bingo_type_value():
-                    bingoType = "words"
-                else:
-                    bingoType = "pictures"
+                # Save a .bingo file to store the locations of important files in the working_dir folder.
+                dest = self.save_bingo_file()
 
-            self.bingoType = bingoType
+                # If we chose not to save, reset everything and return.
+                if not dest:
+                    self.reset()
+                    return
 
-            # Prompt the user to select a file for word Bingo or a folder for picture Bingo.
-            # For words, check the number of lines in the file.
-            # For pictures, check the number of files in the folder.
-            items = self.check_number_of_items()
+                # If we got here via a generic "New" command, prompt the user for which type of Bingo.
+                if not bingoType:
+                    self.bingoTypePopup = self.popup("Which type of Bingo cards do you want to create?", button1Text="Words", button2Text="Pictures")
+                    if self.bingo_type_value():
+                        bingoType = "words"
+                    else:
+                        bingoType = "pictures"
 
-            # If we didn't select a file/folder, reset and return.
-            if not items:
-                self.reset()
-                return
+                self.bingoType = bingoType
 
-            # Create a folder named after the .bingo file under the working_dir folder.
-            # This is where the relevant files for this Bingo game will live.
-            workingDirName = os.path.splitext(os.path.basename(dest))[0]
-            self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
-            self.delete_create_folder(self.bingoFullPath)
+                # Prompt the user to select a file for word Bingo or a folder for picture Bingo.
+                # For words, check the number of lines in the file.
+                # For pictures, check the number of files in the folder.
+                items = self.check_number_of_items()
 
-            # Create subfolders to house the different sizes of pictures.
-            if bingoType == "pictures":
-                self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
-                self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
-                self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
-                
-            self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
+                # If we didn't select a file/folder, reset and return.
+                if not items:
+                    self.reset()
+                    return
 
-            # If we're generating cards, there is no game in progress and
-            # we should not be able to ask for the next image/word.
-            self.gameInProgress = False
-            self.nextImage["state"] = tk.DISABLED
+                # Create a folder named after the .bingo file under the working_dir folder.
+                # This is where the relevant files for this Bingo game will live.
+                workingDirName = os.path.splitext(os.path.basename(dest))[0]
+                self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
+                self.delete_create_folder(self.bingoFullPath)
 
-            # Prompt the user for the number of Bingo cards they want to create.
-            cards = self.get_number_of_cards()
-
-            # Prompt the user for whether they want a "FREE SPACE" in the middle square in each card.
-            self.freeSpacePopup = self.popup("Do want a free space in the middle square?", button1Text="Yes", button2Text="No")
-            freeSpace = self.free_space_value()
-
-            if self.bingoType == "pictures":
-                # Since I don't know how long this could take, display a progress bar.
-                self.progressLabel = tk.Label(root, text="Processing images...")
-                self.progressLabel.place(x=450, y=530)
-                self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-                self.progress.place(x=450,y=550)
-                
-                # Create the necessary files for picture Bingo:
-                for i, picture in enumerate(self.pictures):
-                    self.progress["value"] = i / len(self.pictures)
-                    root.update_idletasks()
+                # Create subfolders to house the different sizes of pictures.
+                if bingoType == "pictures":
+                    self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
+                    self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
+                    self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
                     
-                    # Medium images to be in the bingo cards.
-                    newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
-                    if not newCardPicture:
-                        self.reset()
-                        log_status("    Returning after reset.")
-                        return
-                    
-                    self.cardPictures.append(newCardPicture)
-                    
-                    # Small images to be in the history during play.
-                    newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
-                    if not newHistoryPicture:
-                        self.reset()
-                        log_status("    Returning after reset.")
-                        return
-                    
-                    self.historyPictures.append(newHistoryPicture)
-                    
-                    # Large images for display when you click the "Display next image/word" button.
-                    newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
-                    if not newDisplayPicture:
-                        self.reset()
-                        log_status("    Returning after reset.")
-                        return
-                    
-                    self.displayPictures.append(newDisplayPicture)
+                self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
 
-                # Ditch the progress bar.
-                self.progress.place_forget()
-                self.progressLabel.place_forget()
+                # If we're generating cards, there is no game in progress and
+                # we should not be able to ask for the next image/word.
+                self.gameInProgress = False
+                self.nextImage["state"] = tk.DISABLED
+                self.previousImage["state"] = tk.DISABLED
 
-            self.create_bingo_cards(freeSpace, cards)
+                # Prompt the user for the number of Bingo cards they want to create.
+                cards = self.get_number_of_cards()
 
-            # Save the dict again.
-            self.save_dict_file(dest)
+                # Prompt the user for whether they want a "FREE SPACE" in the middle square in each card.
+                self.freeSpacePopup = self.popup("Do want a free space in the middle square?", button1Text="Yes", button2Text="No")
+                freeSpace = self.free_space_value()
 
-            # Everything should be set to go!
-            self.prep_for_play()
+                if self.bingoType == "pictures":
+                    # Since I don't know how long this could take, display a progress bar.
+                    self.progressLabel = tk.Label(root, text="Processing images...")
+                    self.progressLabel.place(x=450, y=530)
+                    self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
+                    self.progress.place(x=450,y=550)
+                    
+                    # Create the necessary files for picture Bingo:
+                    for i, picture in enumerate(self.pictures):
+                        self.progress["value"] = i / len(self.pictures)
+                        root.update_idletasks()
+                        
+                        # Medium images to be in the bingo cards.
+                        newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
+                        if not newCardPicture:
+                            self.reset()
+                            log_status("    Returning after reset.")
+                            return
+                        
+                        self.cardPictures.append(newCardPicture)
+                        
+                        # Small images to be in the history during play.
+                        newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
+                        if not newHistoryPicture:
+                            self.reset()
+                            log_status("    Returning after reset.")
+                            return
+                        
+                        self.historyPictures.append(newHistoryPicture)
+                        
+                        # Large images for display when you click the "Display next image/word" button.
+                        newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
+                        if not newDisplayPicture:
+                            self.reset()
+                            log_status("    Returning after reset.")
+                            return
+                        
+                        self.displayPictures.append(newDisplayPicture)
+
+                    # Ditch the progress bar.
+                    self.progress.place_forget()
+                    self.progressLabel.place_forget()
+
+                self.create_bingo_cards(freeSpace, cards)
+
+                # Save the dict again.
+                self.save_dict_file(dest)
+
+                # Everything should be set to go!
+                self.prep_for_play()
+            except:
+                log_status(logging.exception("message"))
+                raise
             
 
         def prep_for_play(self):
@@ -642,130 +711,230 @@ try:
             Enables the button/menu item to view the bingo cards
             and display the next image or word.
             """
-            log_status("Start of prep_for_play.")
-            # Randomize the lists that will be displayed when you click the "Display next image/word" button.
-            random.shuffle(self.displayPictures)
-            random.shuffle(self.words)
+            try:
+                log_status("Start of prep_for_play.")
+                # Randomize the lists that will be displayed when you click the "Display next image/word" button.
+                random.shuffle(self.displayPictures)
+                random.shuffle(self.words)
 
-            # Enable the buttons/menus to view the bingo cards as well as display the next image or word.
-            self.nextImage["state"] = tk.NORMAL
+                # Enable the buttons/menus to view the bingo cards as well as display the next image or word.
+                self.nextImage["state"] = tk.NORMAL
 
-            fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
-            fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
-            
-            self.dBindId = self.enable_binding("d", self.ctrl_d)
-            self.cBindId = self.enable_binding("c", self.ctrl_c)
+                fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+                fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
+                
+                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                self.cBindId = self.enable_binding("c", self.ctrl_c)
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def play_bingo(self):
             """
             Loads a .bingo card fore viewing and/or playing.
             """
-            log_status("Start of play_bingo.")
-            # Check to see if there's already a game in progress.
-            if not self.interrupt_confirm():
-                return
+            try:
+                log_status("Start of play_bingo.")
+                # Check to see if there's already a game in progress.
+                if not self.interrupt_confirm():
+                    return
 
-            self.reset()
+                self.reset()
 
-            # Get a .bingo file to play.
-            if not self.load_file():
-                return
+                # Get a .bingo file to play.
+                if not self.load_file():
+                    return
 
-            # Set everything up!
-            self.prep_for_play()
+                # Set everything up!
+                self.prep_for_play()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def display_next_image_or_word(self):
             """
             Displays the next item in the randomized list of items while playing Bingo.
             """
-            log_status("Start of display_next_image_or_word.")
-            self.gameInProgress = True
+            try:
+                log_status("Start of display_next_image_or_word.")
+                self.gameInProgress = True
 
-            # Remove the instructions if they're on screen.
-            if self.startText:
-                canvas.delete(self.startText)
+                # Remove the instructions if they're on screen.
+                if self.startText:
+                    canvas.delete(self.startText)
 
-            if self.bingoType == "pictures":
-                items = self.displayPictures
-                
-                # Get the next image.
-                calledItem = self.displayPictures.pop(0)
-                self.calledItems.append(calledItem)
-                img = ImageTk.PhotoImage(Image.open(calledItem))
-
-                # If an image has already been displayed, delete it so we're not just piling images on top of one another.
-                if len(self.calledItems) > 1:
-                    canvas.delete(self.displayCanvas)
-
-                # Display the image.
-                self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
-                canvas.image = img
-
-                # Put the called images into the history.
-                hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/").replace("_display.", "_history.")))
-                hi = tk.Label(image=hImg)
-                hi.image = hImg
-
-                # Place this image at x,y coordinates on screen, starting near the top left,
-                # going across the screen to the right, then starting a new row.
-                hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
-                self.historyImages.append(hi)
-                self.xOffset += 52
-
-                if len(self.calledItems) % 19 == 0:
-                    self.yOffset += 50
-                    self.xOffset = 0
-            elif self.bingoType == "words":
-                items = self.words
-                
-                # Display the next word.
-                self.calledItems.append(self.words.pop(0))
-                if len(self.calledItems) > 1:
-                    canvas.delete(self.displayCanvas)
-                self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
-
-                # Put the called word into the history.
-                for hc in self.historyCanvas:
-                    canvas.delete(hc)
-
-                self.historyCanvas = []
-
-                # Words are displayed down the left side of the screen,
-                # then creating another column.
-                for x in range(ceil(len(self.calledItems) / 15)):
-                    xCoord = (10 if x == 0 else x * 150)
-                    # Set the index range.
-                    iFrom = x * 15
-                    iTo = min([(x + 1) * 15, len(self.calledItems)])
-                    self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
-
-            # If all items have been displayed, show a popup informing the user.
-            # Disable the display button/menu.
-            # Set the game as finished so you don't have to confirm if you generate/load from here.
-            if len(items) == 0:
-                self.disable_binding("d", self.dBindId)
-                self.nextImage["state"] = tk.DISABLED
-                fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
-                self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
-                self.gameInProgress = False
-                return
+                if self.bingoType == "pictures":
+                    items = self.displayPictures
                     
+                    # Get the next image.
+                    calledItem = self.displayPictures.pop()
+                    self.calledItems.append(calledItem)
+                    img = ImageTk.PhotoImage(Image.open(calledItem))
+
+                    # If an image has already been displayed, delete it so we're not just piling images on top of one another.
+                    if len(self.calledItems) > 1:
+                        canvas.delete(self.displayCanvas)
+
+                    # Display the image.
+                    self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
+                    canvas.image = img
+
+                    # Put the called images into the history.
+                    hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/").replace("_display.", "_history.")))
+                    hi = tk.Label(image=hImg)
+                    hi.image = hImg
+
+                    # Place this image at x,y coordinates on screen, starting near the top left,
+                    # going across the screen to the right, then starting a new row.
+                    hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
+                    self.historyImages.append(hi)
+                    self.xOffset += 52
+
+                    if len(self.calledItems) % 19 == 0:
+                        self.yOffset += 50
+                        self.xOffset = 0
+                elif self.bingoType == "words":
+                    items = self.words
+                    
+                    # Display the next word.
+                    self.calledItems.append(self.words.pop())
+                    if len(self.calledItems) > 1:
+                        canvas.delete(self.displayCanvas)
+                    self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
+
+                    # Put the called word into the history.
+                    for hc in self.historyCanvas:
+                        canvas.delete(hc)
+
+                    self.historyCanvas = []
+
+                    # Words are displayed down the left side of the screen,
+                    # then creating another column.
+                    for x in range(ceil(len(self.calledItems) / 15)):
+                        xCoord = (10 if x == 0 else x * 150)
+                        # Set the index range.
+                        iFrom = x * 15
+                        iTo = min([(x + 1) * 15, len(self.calledItems)])
+                        self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
+
+                # Enable the back button and keyboard shortcut.
+                if len(self.calledItems) > 1 and self.previousImage["state"] == tk.DISABLED:
+                    self.bBindId = self.enable_binding("b", self.ctrl_b)
+                    self.previousImage["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display last image/word", state=tk.NORMAL)
+
+                # If all items have been displayed, show a popup informing the user.
+                # Disable the display button/menu.
+                # Set the game as finished so you don't have to confirm if you generate/load from here.
+                if len(items) == 0:
+                    self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
+                    self.disable_binding("d", self.dBindId)
+                    self.nextImage["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
+                    self.gameInProgress = False
+                    return
+            except:
+                log_status(logging.exception("message"))
+                raise
+
+
+        def display_previous_image_or_word(self):
+            """
+            A "go back" button to use while playing Bingo.
+            """
+            try:
+                log_status("Start of display_previous_image_or_word.")
+
+                if len(self.calledItems) == 1:
+                    return
+
+                self.gameInProgress = True
+
+                if self.bingoType == "pictures":
+                    # Get the previous image.
+                    previousItem = self.calledItems.pop()
+                    self.displayPictures.append(previousItem)
+                    img = ImageTk.PhotoImage(Image.open(self.calledItems[-1]))
+
+                    canvas.delete(self.displayCanvas)
+
+                    # Display the image.
+                    self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
+                    canvas.image = img
+                    
+                    # Remove the current image from the history.
+                    previousHistoryItem = self.historyImages.pop()
+                    previousHistoryItem.place_forget()
+                    
+                    self.xOffset -= 52
+
+                    if len(self.calledItems) % 19 == 0:
+                        self.yOffset -= 50
+                        self.xOffset = 0
+                elif self.bingoType == "words":
+                    # Display the last word.
+                    previousItem = self.calledItems.pop()
+                    self.words.append(previousItem)
+                    canvas.delete(self.displayCanvas)
+                    self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
+
+                    # Put the called word into the history.
+                    for hc in self.historyCanvas:
+                        canvas.delete(hc)
+
+                    self.historyCanvas = []
+
+                    # Words are displayed down the left side of the screen,
+                    # then creating another column.
+                    for x in range(ceil(len(self.calledItems) / 15)):
+                        xCoord = (10 if x == 0 else x * 150)
+                        # Set the index range.
+                        iFrom = x * 15
+                        iTo = min([(x + 1) * 15, len(self.calledItems)])
+                        self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
+
+                if len(self.calledItems) < 2 and self.previousImage["state"] == tk.NORMAL:
+                    self.previousImage["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display last image/word", state=tk.DISABLED)
+                    self.disable_binding("b", self.bBindId)
+
+                if self.nextImage["state"] == tk.DISABLED:
+                    self.dBindId = self.enable_binding("d", self.ctrl_d)
+                    self.nextImage["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+            except:
+                log_status(logging.exception("message"))
+                raise
+                   
 
         def create_buttons(self):
             """
-            Create the button for displaying the next item while playing Bingo.
+            Create the buttons for displaying the next/last item while playing Bingo.
             """
-            log_status("Start of create_buttons.")
-            self.nextImage = tk.Button(self)
-            self.nextImage["text"] = "Display the next image/word"
-            self.nextImage["font"] = ("calibri", 16)
-            self.nextImage["command"] = self.display_next_image_or_word
-            self.nextImage.pack({"side": "left"})
-            self.nextImage["state"] = tk.DISABLED
-            self.buttons.append(self.nextImage)
+            try:
+                log_status("Start of create_buttons.")
 
+                self.previousImage = tk.Button(self)
+                self.previousImage["text"] = "Back to the last image/word"
+                self.previousImage["font"] = ("calibri", 16)
+                self.previousImage["command"] = self.display_previous_image_or_word
+                self.previousImage.pack({"side": "left"})
+                self.previousImage["state"] = tk.DISABLED
+                self.buttons.append(self.previousImage)
+
+                self.nextImage = tk.Button(self)
+                self.nextImage["text"] = "Display the next image/word"
+                self.nextImage["font"] = ("calibri", 16)
+                self.nextImage["command"] = self.display_next_image_or_word
+                self.nextImage.pack({"side": "left"})
+                self.nextImage["state"] = tk.DISABLED
+                self.buttons.append(self.nextImage)
+            except:
+                log_status(logging.exception("message"))
+                raise
+            
 
         def popup(self, labelText, entry=False, button1Text=None, button2Text=None):
             """
@@ -788,22 +957,51 @@ try:
                     The text to display in the second button. If None, no button is displayed.
                     Default: None
             """
-            log_status("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text))
-            p = popupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
-            
-            for b in self.buttons:
-                b["state"] = tk.DISABLED
-
-            menuBar.entryconfig("File", state=tk.DISABLED)
+            try:
+                log_status("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text))
+                p = popupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
                 
-            self.master.wait_window(p.top)
-            for b in self.buttons:
-                b["state"] = tk.NORMAL
+                # Disable all buttons while the popup is active.
+                for b in self.buttons:
+                    b["state"] = tk.DISABLED
 
-            menuBar.entryconfig("File", state="normal")
+                # Disable the file menu while the popup is active.
+                menuBar.entryconfig("File", state=tk.DISABLED)
 
-            log_status("    Returning")
-            return p
+                # Disable all keyboard shortcuts while the popup is active.
+                self.disable_binding("w", self.wBindId)
+                self.disable_binding("p", self.pBindId)
+                self.disable_binding("q", self.qBindId)
+                self.disable_binding("o", self.oBindId)
+                self.disable_binding("n", self.nBindId)
+                self.disable_binding("d", self.dBindId)
+                self.disable_binding("c", self.cBindId)
+                self.disable_binding("b", self.bBindId)
+                    
+                self.master.wait_window(p.top)
+
+                # Enable the buttons.
+                for b in self.buttons:
+                    b["state"] = tk.NORMAL
+
+                # Enable the file menu.
+                menuBar.entryconfig("File", state="normal")
+
+                # Enable the keyboard shortcuts.
+                self.wBindId = self.enable_binding("w", self.ctrl_w)
+                self.pBindId = self.enable_binding("p", self.ctrl_p)
+                self.qBindId = self.enable_binding("q", self.ctrl_q)
+                self.oBindId = self.enable_binding("o", self.ctrl_o)
+                self.nBindId = self.enable_binding("n", self.ctrl_n)
+                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                self.cBindId = self.enable_binding("c", self.ctrl_c)
+                self.bBindId = self.enable_binding("b", self.ctrl_b)
+
+                log_status("    Returning")
+                return p
+            except:
+                log_status(logging.exception("message"))
+                raise
             
 
         def free_space_value(self):
@@ -811,8 +1009,12 @@ try:
             Returns the value that was selected about whether the user
             wants a "free space" in the bingo cards.
             """
-            log_status("free_space_value returning " + str(self.freeSpacePopup.value))
-            return self.freeSpacePopup.value
+            try:
+                log_status("free_space_value returning " + str(self.freeSpacePopup.value))
+                return self.freeSpacePopup.value
+            except:
+                log_status(logging.exception("message"))
+                raise
             
 
         def bingo_type_value(self):
@@ -820,16 +1022,24 @@ try:
             Returns the value that was selected about whether the user
             wants to create word or picture bingo cards.
             """
-            log_status("free_space_value returning " + str(self.bingoTypePopup.value))
-            return self.bingoTypePopup.value
+            try:
+                log_status("free_space_value returning " + str(self.bingoTypePopup.value))
+                return self.bingoTypePopup.value
+            except:
+                log_status(logging.exception("message"))
+                raise
             
 
         def cards_value(self):
             """
             Returns the value that was for the number of bingo cards to create.
             """
-            log_status("free_space_value returning " + str(self.cardsPopup.value))
-            return self.cardsPopup.value
+            try:
+                log_status("free_space_value returning " + str(self.cardsPopup.value))
+                return self.cardsPopup.value
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def interrupt_value(self):
@@ -837,8 +1047,12 @@ try:
             Returns the value that was selected about whether the user
             wants a to interrupt the current game of bingo.
             """
-            log_status("free_space_value returning " + str(self.confirmPopup.value))
-            return self.confirmPopup.value
+            try:
+                log_status("free_space_value returning " + str(self.confirmPopup.value))
+                return self.confirmPopup.value
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_w(self, event):
@@ -849,7 +1063,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.generate_bingo_cards("words")
+            try:
+                log_status("Start of ctrl_w.")
+                self.generate_bingo_cards("words")
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_p(self, event):
@@ -860,7 +1079,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.generate_bingo_cards("pictures")
+            try:
+                log_status("Start of ctrl_p.")
+                self.generate_bingo_cards("pictures")
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_o(self, event):
@@ -871,7 +1095,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.play_bingo()
+            try:
+                log_status("Start of ctrl_o.")
+                self.play_bingo()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_q(self, event):
@@ -882,7 +1111,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            root.quit()
+            try:
+                log_status("Start of ctrl_q.")
+                root.quit()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_n(self, event):
@@ -893,7 +1127,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.generate_bingo_cards()
+            try:
+                log_status("Start of ctrl_n.")
+                self.generate_bingo_cards()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_d(self, event):
@@ -904,10 +1143,31 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.display_next_image_or_word()
+            try:
+                log_status("Start of ctrl_d.")
+                self.display_next_image_or_word()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def ctrl_c(self, event):
+            """
+            Keyboard shortcut for opening the folder containing the bingo cards.
+
+            Required Parameters:
+                event: tkinter.Event
+                    The tkinter Event that is the trigger.
+            """
+            try:
+                log_status("Start of ctrl_c.")
+                self.open_bingo_cards_folder()
+            except:
+                log_status(logging.exception("message"))
+                raise
+
+
+        def ctrl_b(self, event):
             """
             Keyboard shortcut for displaying the next item while playing bingo.
 
@@ -915,7 +1175,12 @@ try:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
-            self.open_bingo_cards_folder()
+            try:
+                log_status("Start of ctrl_b.")
+                self.display_previous_image_or_word()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def disable_binding(self, bindKey, bindId):
@@ -929,8 +1194,12 @@ try:
                 bindId: String
                     The ID from when the shortcut was enabled.
             """
-            log_status("Start of disable_binding: bindKey=" + bindKey + ", bindId=" + bindId)
-            self.unbind("<" + bindKey + ">", bindId)
+            try:
+                log_status("Start of disable_binding: bindKey=" + bindKey + ", bindId=" + bindId)
+                self.unbind("<" + bindKey + ">", bindId)
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
         def enable_binding(self, bindKey, method):
@@ -944,8 +1213,12 @@ try:
                 method: method/function
                     The method or function to run when the key combination is pressed.
             """
-            log_status("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method))
-            return self.bind_all("<Control-" + bindKey + ">", method)
+            try:
+                log_status("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method))
+                return self.bind_all("<Control-" + bindKey + ">", method)
+            except:
+                log_status(logging.exception("message"))
+                raise
         
 
     class popupWindow(object):
@@ -974,43 +1247,55 @@ try:
                 Default: None
         """
         def __init__(self, master, labelText, entry=False, button1Text=None, button2Text=None):
-            top = self.top = tk.Toplevel(master)
-            self.l = tk.Label(top, text=labelText, font=("calibri", 16))
-            self.l.pack()
+            try:
+                top = self.top = tk.Toplevel(master)
+                self.l = tk.Label(top, text=labelText, font=("calibri", 16))
+                self.l.pack()
 
-            if entry:
-                self.e = tk.Entry(top, font=("calibri", 16))
-                self.e.pack()
-
-            if button1Text:
                 if entry:
-                    self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupEntry)
-                else:
-                    self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupTrue)
+                    self.e = tk.Entry(top, font=("calibri", 16))
+                    self.e.pack()
 
-                self.b1.pack()
+                if button1Text:
+                    if entry:
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupEntry)
+                    else:
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupTrue)
 
-            if button2Text:
-                self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanupFalse)
-                self.b2.pack()
+                    self.b1.pack()
+
+                if button2Text:
+                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanupFalse)
+                    self.b2.pack()
+            except:
+                log_status(logging.exception("message"))
+                raise
             
             
         def cleanupTrue(self):
             """
             Sets the "value" of the popup window object to True and removes the popup window.
             """
-            log_status("    Cleaning up popup with value of True")
-            self.value = True
-            self.top.destroy()
+            try:
+                log_status("    Cleaning up popup with value of True")
+                self.value = True
+                self.top.destroy()
+            except:
+                log_status(logging.exception("message"))
+                raise
             
             
         def cleanupFalse(self):
             """
             Sets the "value" of the popup window object to False and removes the popup window.
             """
-            log_status("    Cleaning up popup with value of False")
-            self.value = False
-            self.top.destroy()
+            try:
+                log_status("    Cleaning up popup with value of False")
+                self.value = False
+                self.top.destroy()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
             
         def cleanupEntry(self):
@@ -1018,9 +1303,13 @@ try:
             Sets the "value" of the popup window object to what the user entered in the entry box
             and removes the popup window.
             """
-            log_status("    Cleaning up popup with value of " + str(self.e.get()))
-            self.value = self.e.get()
-            self.top.destroy()
+            try:
+                log_status("    Cleaning up popup with value of " + str(self.e.get()))
+                self.value = self.e.get()
+                self.top.destroy()
+            except:
+                log_status(logging.exception("message"))
+                raise
 
 
     log_status("Start", writeType="w")
@@ -1053,15 +1342,12 @@ try:
     2. Click File --> New Bingo Cards --> select which kind of Bingo cards you want.
        Alternatively, click File --> New Word Bingo Cards or New Picture Bingo Cards.
        Save a .bingo file.
-    3. Choose whether you want a "free space" in the center square.
-    4. Choose the things to display in the cards.
-        a. Word Bingo - Select the file that contains the Bingo words.
-        b. Picture Bingo - Select the folder with your Bingo images in it.
     3. Follow remaining instructions.
+    4. Now you can play!
 
     To play Bingo:
-    1. Click File --> Load Bingo button.
-    2. Open a .bingo file you created in create step 2 above.
+    1. If you created the Bingo cards previously, click File --> Load Bingo button.
+    2. Open a .bingo file you created.
     3. Click the \"Display next image/word\" button until someone wins!"""
 
     # Header for the HTML file used for the Bingo cards.
@@ -1094,6 +1380,7 @@ try:
     fileMenu.add_command(label="New Picture Bingo Cards", command=lambda:app.generate_bingo_cards("pictures"), accelerator="Ctrl+P")
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
     fileMenu.add_command(label="Display next image/word", command=lambda: app.display_next_image_or_word(), state=tk.DISABLED, accelerator="Ctrl+D")
+    fileMenu.add_command(label="Display last image/word", command=lambda: app.display_previous_image_or_word(), state=tk.DISABLED, accelerator="Ctrl+B")
     fileMenu.add_command(label="Open bingo cards folder", command=lambda: app.open_bingo_cards_folder(), state=tk.DISABLED, accelerator="Ctrl+C")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
