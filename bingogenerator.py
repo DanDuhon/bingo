@@ -32,7 +32,7 @@ try:
     from tkinter import ttk
     from PIL import Image, ImageTk
     import PIL
-    from math import ceil
+    from math import ceil, floor
 
 
     class Application(tk.Frame):
@@ -768,6 +768,11 @@ try:
                 if self.bingoType == "pictures":
                     items = self.displayPictures
                     
+                    # This helps determine where the history images are displayed on screen.
+                    # Needs to be calculated prior to self.calledItems changing.
+                    self.xOffset = 52 * floor(len(self.calledItems) / 5)
+                    self.yOffset = 50 * (len(self.calledItems) % 5)
+                    
                     # Get the next image.
                     calledItem = self.displayPictures.pop()
                     self.calledItems.append(calledItem)
@@ -790,11 +795,7 @@ try:
                     # going across the screen to the right, then starting a new row.
                     hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
                     self.historyImages.append(hi)
-                    self.xOffset += 52
-
-                    if len(self.calledItems) % 19 == 0:
-                        self.yOffset += 50
-                        self.xOffset = 0
+                    
                 elif self.bingoType == "words":
                     items = self.words
                     
@@ -867,12 +868,6 @@ try:
                     # Remove the current image from the history.
                     previousHistoryItem = self.historyImages.pop()
                     previousHistoryItem.place_forget()
-                    
-                    self.xOffset -= 52
-
-                    if len(self.calledItems) % 19 == 0:
-                        self.yOffset -= 50
-                        self.xOffset = 0
                 elif self.bingoType == "words":
                     # Display the last word.
                     previousItem = self.calledItems.pop()
