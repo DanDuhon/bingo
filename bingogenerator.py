@@ -1,24 +1,15 @@
-def log_status(status, writeType="a"):
-    """
-    Logs events to a log file.
-
-    Required Parameters:
-        status: String
-            The text to write in the log file.
-
-    Optional Parameters:
-        writeType: String
-            The write type with which to open the file.
-            Default: "a" (append)
-    """
-    logFile = open("log.txt", writeType)
-    logFile.write(str(datetime.datetime.now()) + ": " + status + "\n")
-    logFile.close()
+def configure_logging():
+    fh = logging.FileHandler(os.path.dirname(os.path.realpath(__file__)) + "\log.txt", "w")
+    f = OneLineExceptionFormatter('%(asctime)s|%(levelname)s|%(message)s|',
+        '%d/%m/%Y %H:%M:%S')
+    fh.setFormatter(f)
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG)
+    root.addHandler(fh)
 
 
 try:
     import random
-    import datetime
     import sys
     import os
     import shutil
@@ -26,6 +17,7 @@ try:
     import imgkit
     import webbrowser
     import logging
+    import inspect
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
@@ -38,7 +30,7 @@ try:
     class Application(tk.Frame):
         def __init__(self, master=None):
             try:
-                log_status("Initiating application.")
+                logging.debug("Initiating application")
                 tk.Frame.__init__(self, master)
                 self.pack()
                 self.buttons = []
@@ -66,14 +58,9 @@ try:
                 self.qBindId = self.enable_binding("q", self.ctrl_q)
                 self.oBindId = self.enable_binding("o", self.ctrl_o)
                 self.nBindId = self.enable_binding("n", self.ctrl_n)
-                self.dBindId = self.enable_binding("d", self.ctrl_d)
-                self.cBindId = self.enable_binding("c", self.ctrl_c)
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
-
-                # Disable these because they are only valid when a .bingo file has been loaded.
-                self.disable_binding("d", self.dBindId)
-                self.disable_binding("c", self.cBindId)
-                self.disable_binding("b", self.bBindId)
+                # These do nothing for now because they are only valid when a .bingo file has been loaded.
+                self.dBindId = self.enable_binding("d", self.do_nothing)
+                self.bBindId = self.enable_binding("b", self.do_nothing)
 
                 # Find all the .bingo files and associated folders that are stored in the dict
                 # and delete one if the other doesn't exist.
@@ -94,8 +81,10 @@ try:
                 with open("fileFolderDict.p", "wb") as f:
                     pickler = pickle.Pickler(f)
                     pickler.dump(fileFolderDict)
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("Application initiated")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
 
@@ -118,7 +107,11 @@ try:
                     Whether there is a "free space" in the center square of the table.
             """
             try:
-                log_status("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
+                logging.debug("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                
                 # Get a random sample of the words/pictures with which to fill in this card.
                 if self.bingoType == "pictures":
                     ps = random.sample(self.cardPictures, cols * rows)
@@ -160,8 +153,10 @@ try:
 
                 # Add the location of the image to what will be saved in the .bingo file.
                 self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of generate_html_card")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -171,9 +166,17 @@ try:
             to view or print them.
             """
             try:
-                webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("Start of open_bingo_cards_folder")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                
+                if self.bingoFullPath:
+                    webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
+
+                logging.debug("End of open_bingo_cards_folder")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -203,7 +206,11 @@ try:
                     The length in pixels of the longest side of the resized image.
             """
             try:
-                log_status("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize))
+                logging.debug("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 img = Image.open(folder + "/" + picture)
                 # See whether the height or width of the image is larger.
                 # The larger side is scaled to the maxSideSize.
@@ -220,17 +227,19 @@ try:
                 img = img.resize((wSize, hSize), Image.ANTIALIAS)
 
                 # Save the resized image in this game's folder.
-                resizedFileName = destFolder + "/" + pictureType + "_pictures/" + str(pictureNum) + "_" + pictureType + os.path.splitext(folder + "/" + picture)[1]
+                resizedFileName = destFolder + "/" + pictureType + "_pictures/" + str(pictureNum) + "_" + os.path.splitext(folder + "/" + picture)[1]
                 img.save(resizedFileName)
                 
-                log_status("    Returning " + resizedFileName)
+                logging.debug("    Returning " + resizedFileName)
+                logging.debug("End of resize_image")
                 return resizedFileName
             except PIL.UnidentifiedImageError:
                 self.popup(picture + " is not a recognized image format!\r\nPlease make sure your Bingo images folder has ONLY images in it!", button1Text="Ok")
-                log_status("    Returning None")
+                logging.debug("    Returning None")
+                logging.debug("End of resize_image")
                 return None
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -240,12 +249,18 @@ try:
             Returns a String containing the file name.
             """
             try:
-                log_status("Start of save_bingo_file.")
+                logging.debug("Start of save_bingo_file")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                
                 self.bingoTypePopup = self.popup("First save a file that will contain the information for this bingo game.", button1Text="Ok")
+                
                 # Prompt the user to save the .bingo file.
                 output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".bingo")
 
                 if not output:
+                    logging.debug("End of save_bingo_file (nothing done)")
                     return
 
                 # Update the dict that tracks all file locations for this bingo game.
@@ -257,10 +272,11 @@ try:
                 # Update the dict that tracks all file locations for this bingo game.
                 self.save_dict_file(output.name)
 
-                log_status("    Returning " + output.name)
+                logging.debug("    Returning " + output.name)
+                logging.debug("End of save_bingo_file")
                 return output.name
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -273,7 +289,11 @@ try:
                     The file name of the .bingo file.
             """
             try:
-                log_status("Start of save_dict_file: bingoName=" + bingoName)
+                logging.debug("Start of save_dict_file: bingoName=" + bingoName)
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Save the dict for this Bingo game that tracks locations of files.
                 pickler = open(bingoName, "wb")
 
@@ -288,8 +308,10 @@ try:
                 pickle.dump(pickleDict, pickler, -1)
 
                 pickler.close()
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of save_dict_file")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -304,7 +326,11 @@ try:
                 self.bingoFullPath
             """
             try:
-                log_status("Start of load_file.")
+                logging.debug("Start of load_file")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Prompt the user for a .bingo file to load.
                 loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
                 if not loadFile:
@@ -326,10 +352,11 @@ try:
                 elif self.displayPictures:
                     self.bingoType = "pictures"
 
-                log_status("    Returning True")
+                logging.debug("    Returning True")
+                logging.debug("End of load_file")
                 return True
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -341,7 +368,11 @@ try:
             they want to interrupt the game in progress.
             """
             try:
-                log_status("Start of interrupt_confirm.")
+                logging.debug("Start of interrupt_confirm")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Check to see if there's a game in progress.
                 # If there is, prompt the user to confirm they want to stop the game.
                 if self.gameInProgress:
@@ -349,16 +380,19 @@ try:
                     interrupt = self.interrupt_value()
 
                     if not interrupt:
-                        log_status("    Returning False")
+                        logging.debug("End of interrupt_confirm")
+                        logging.debug("    Returning False")
                         return False
                     else:
-                        log_status("    Returning True")
+                        logging.debug("End of interrupt_confirm")
+                        logging.debug("    Returning True")
                         return True
 
-                log_status("    Returning True")
+                logging.debug("    Returning True")
+                logging.debug("End of interrupt_confirm")
                 return True
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -369,7 +403,11 @@ try:
             with a different operation than was previously in progress.
             """
             try:
-                log_status("Start of reset.")
+                logging.debug("Start of reset")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Reset everything. All variables, buttons, menu items, etc.
                 canvas.delete("all")
                 
@@ -398,16 +436,10 @@ try:
                 fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
                 fileMenu.entryconfig("Display last image/word", state=tk.DISABLED)
                 fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
-                
-                self.dBindId = self.enable_binding("d", self.ctrl_d)
-                self.cBindId = self.enable_binding("c", self.ctrl_c)
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
 
-                self.disable_binding("d", self.dBindId)
-                self.disable_binding("c", self.cBindId)
-                self.disable_binding("b", self.bBindId)
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of reset")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -423,14 +455,19 @@ try:
             Returns a String of the path to the folder/file.
             """
             try:
-                log_status("Start of check_number_of_items.")
+                logging.debug("Start of check_number_of_items")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 if self.bingoType == "pictures":
                     self.bingoTypePopup = self.popup("Now choose the folder that contains the pictures to use.", button1Text="Ok")
                     # Prompt the user for a folder of images to use.
                     while True:
-                        folder = filedialog.askdirectory(title="Select the folders the pictures are in.")
+                        folder = filedialog.askdirectory(title="Select the folders the pictures are in")
                         if not folder:
-                            log_status("    Returning False")
+                            logging.debug("    Returning False")
+                            logging.debug("End of check_number_of_items")
                             return None
 
                         # Set the pictures to the list of files in the folder.
@@ -448,7 +485,8 @@ try:
                         
                         break
 
-                    log_status("    Returning " + folder)
+                    logging.debug("    Returning " + folder)
+                    logging.debug("End of check_number_of_items")
                     return folder
                 elif self.bingoType == "words":
                     self.bingoTypePopup = self.popup("Now choose the file that contains the words to use.", button1Text="Ok")
@@ -456,7 +494,8 @@ try:
                         # Prompt the user for a file that contains the words to use.
                         file = filedialog.askopenfilename(title="Select the file the words are in.", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
                         if not file:
-                            log_status("    Returning False")
+                            logging.debug("    Returning False")
+                            logging.debug("End of check_number_of_items")
                             return None
 
                         f = open(file, "r").readlines()
@@ -476,10 +515,11 @@ try:
                         
                         break
 
-                    log_status("    Returning " + file)
+                    logging.debug("    Returning " + file)
+                    logging.debug("End of check_number_of_items")
                     return file
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -489,7 +529,11 @@ try:
             Returns an Integer of the number of cards.
             """
             try:
-                log_status("Start of get_number_of_cards.")
+                logging.debug("Start of get_number_of_cards")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Prompt the user to enter the number of cards they want to create.
                 # Must be a positive whole number.
                 while True:
@@ -509,10 +553,11 @@ try:
 
                     break
 
-                log_status("    Returning " + str(cards))
+                logging.debug("    Returning " + str(cards))
+                logging.debug("End of get_number_of_cards")
                 return cards
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -528,12 +573,16 @@ try:
                     The number of Bingo cards to create.
             """
             try:
-                log_status("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
+                logging.debug("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 columns = 5
                 rows = 5
                 
                 # Since I don't know how long this could take, display a progress bar.
-                self.progressLabel = tk.Label(root, text="Creating bingo cards...")
+                self.progressLabel = tk.Label(root, text="Creating bingo cards..")
                 self.progressLabel.place(x=450, y=530)
                 self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
                 self.progress.place(x=450,y=550)
@@ -547,8 +596,10 @@ try:
                 # Ditch the progress bar.
                 self.progress.place_forget()
                 self.progressLabel.place_forget()
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of create_bingo_cards")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -561,19 +612,24 @@ try:
                     The folder path to delete/create.
             """
             try:
-                log_status("Start of delete_create_folder: folderName=" + str(folderName))
+                logging.debug("Start of delete_create_folder: folderName=" + str(folderName))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
 
                 # If it already exists, delete it.
                 if os.path.exists(folderName) and not os.path.isfile(folderName):
-                    log_status("Deleting " + str(folderName))
+                    logging.debug("Deleting " + str(folderName))
                     shutil.rmtree(folderName)
 
                 # If it doesn't exist, create it.
                 if not os.path.exists(folderName) and not os.path.isfile(folderName):
-                    log_status("Creating " + str(folderName))
+                    logging.debug("Creating " + str(folderName))
                     os.makedirs(folderName)
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of delete_create_folder")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -587,9 +643,14 @@ try:
                     Default: None
             """
             try:
-                log_status("Start of generate_bingo_cards: bingoType=" + str(bingoType))
+                logging.debug("Start of generate_bingo_cards: bingoType=" + str(bingoType))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Check to see if we're interrupting a game by doing this.
-                if not self.interrupt_confirm():
+                if self.gameInProgress and not self.interrupt_confirm():
+                    logging.debug("End of generate_bingo_cards (nothing done)")
                     return
 
                 # Reset everything.
@@ -601,6 +662,7 @@ try:
                 # If we chose not to save, reset everything and return.
                 if not dest:
                     self.reset()
+                    logging.debug("End of generate_bingo_cards (nothing done)")
                     return
 
                 # If we got here via a generic "New" command, prompt the user for which type of Bingo.
@@ -621,6 +683,7 @@ try:
                 # If we didn't select a file/folder, reset and return.
                 if not items:
                     self.reset()
+                    logging.debug("End of generate_bingo_cards")
                     return
 
                 # Create a folder named after the .bingo file under the working_dir folder.
@@ -652,7 +715,7 @@ try:
 
                 if self.bingoType == "pictures":
                     # Since I don't know how long this could take, display a progress bar.
-                    self.progressLabel = tk.Label(root, text="Processing images...")
+                    self.progressLabel = tk.Label(root, text="Processing images..")
                     self.progressLabel.place(x=450, y=530)
                     self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
                     self.progress.place(x=450,y=550)
@@ -666,7 +729,8 @@ try:
                         newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
                         if not newCardPicture:
                             self.reset()
-                            log_status("    Returning after reset.")
+                            logging.debug("End of generate_bingo_cards")
+                            logging.debug("    Returning after reset")
                             return
                         
                         self.cardPictures.append(newCardPicture)
@@ -675,7 +739,8 @@ try:
                         newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
                         if not newHistoryPicture:
                             self.reset()
-                            log_status("    Returning after reset.")
+                            logging.debug("End of generate_bingo_cards")
+                            logging.debug("    Returning after reset")
                             return
                         
                         self.historyPictures.append(newHistoryPicture)
@@ -684,7 +749,8 @@ try:
                         newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
                         if not newDisplayPicture:
                             self.reset()
-                            log_status("    Returning after reset.")
+                            logging.debug("End of generate_bingo_cards")
+                            logging.debug("    Returning after reset")
                             return
                         
                         self.displayPictures.append(newDisplayPicture)
@@ -700,8 +766,10 @@ try:
 
                 # Everything should be set to go!
                 self.prep_for_play()
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of generate_bingo_cards")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
 
@@ -712,7 +780,11 @@ try:
             and display the next image or word.
             """
             try:
-                log_status("Start of prep_for_play.")
+                logging.debug("Start of prep_for_play")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Randomize the lists that will be displayed when you click the "Display next image/word" button.
                 random.shuffle(self.displayPictures)
                 random.shuffle(self.words)
@@ -725,8 +797,10 @@ try:
                 
                 self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of prep_for_play")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -735,21 +809,29 @@ try:
             Loads a .bingo card fore viewing and/or playing.
             """
             try:
-                log_status("Start of play_bingo.")
+                logging.debug("Start of play_bingo")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 # Check to see if there's already a game in progress.
                 if not self.interrupt_confirm():
+                    logging.debug("End of play_bingo (nothing done)")
                     return
 
                 self.reset()
 
                 # Get a .bingo file to play.
                 if not self.load_file():
+                    logging.debug("End of play_bingo (nothing done)")
                     return
 
                 # Set everything up!
                 self.prep_for_play()
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of play_bingo")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -758,8 +840,18 @@ try:
             Displays the next item in the randomized list of items while playing Bingo.
             """
             try:
-                log_status("Start of display_next_image_or_word.")
+                logging.debug("Start of display_next_image_or_word")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
                 self.gameInProgress = True
+                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                self.bBindId = self.enable_binding("b", self.ctrl_b)
+
+                if len(self.displayPictures) == 0:
+                    logging.debug("End of display_next_image_or_word (nothing done)")
+                    return
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
@@ -787,7 +879,7 @@ try:
                     canvas.image = img
 
                     # Put the called images into the history.
-                    hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/").replace("_display.", "_history.")))
+                    hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/")))
                     hi = tk.Label(image=hImg)
                     hi.image = hImg
 
@@ -831,13 +923,15 @@ try:
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
                 if len(items) == 0:
                     self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
-                    self.disable_binding("d", self.dBindId)
                     self.nextImage["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
                     self.gameInProgress = False
+                    logging.debug("End of display_next_image_or_word")
                     return
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of display_next_image_or_word")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -846,9 +940,13 @@ try:
             A "go back" button to use while playing Bingo.
             """
             try:
-                log_status("Start of display_previous_image_or_word.")
+                logging.debug("Start of display_previous_image_or_word")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
 
                 if len(self.calledItems) == 1:
+                    logging.debug("End of display_previous_image_or_word (nothing done)")
                     return
 
                 self.gameInProgress = True
@@ -893,14 +991,15 @@ try:
                 if len(self.calledItems) < 2 and self.previousImage["state"] == tk.NORMAL:
                     self.previousImage["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display last image/word", state=tk.DISABLED)
-                    self.disable_binding("b", self.bBindId)
 
                 if self.nextImage["state"] == tk.DISABLED:
                     self.dBindId = self.enable_binding("d", self.ctrl_d)
                     self.nextImage["state"] = tk.NORMAL
                     fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+
+                logging.debug("End of display_previous_image_or_word")
             except:
-                log_status(logging.exception("message"))
+                logging.exception("message")
                 raise
                    
 
@@ -909,7 +1008,10 @@ try:
             Create the buttons for displaying the next/last item while playing Bingo.
             """
             try:
-                log_status("Start of create_buttons.")
+                logging.debug("Start of create_buttons")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
 
                 self.previousImage = tk.Button(self)
                 self.previousImage["text"] = "Back to the last image/word"
@@ -926,8 +1028,10 @@ try:
                 self.nextImage.pack({"side": "left"})
                 self.nextImage["state"] = tk.DISABLED
                 self.buttons.append(self.nextImage)
-            except:
-                log_status(logging.exception("message"))
+
+                logging.debug("End of create_buttons")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
 
@@ -953,8 +1057,12 @@ try:
                     Default: None
             """
             try:
-                log_status("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text))
-                p = popupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
+                logging.debug("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                
+                p = PopupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
                 
                 # Disable all buttons while the popup is active.
                 for b in self.buttons:
@@ -963,40 +1071,50 @@ try:
                 # Disable the file menu while the popup is active.
                 menuBar.entryconfig("File", state=tk.DISABLED)
 
-                # Disable all keyboard shortcuts while the popup is active.
-                self.disable_binding("w", self.wBindId)
-                self.disable_binding("p", self.pBindId)
-                self.disable_binding("q", self.qBindId)
-                self.disable_binding("o", self.oBindId)
-                self.disable_binding("n", self.nBindId)
-                self.disable_binding("d", self.dBindId)
-                self.disable_binding("c", self.cBindId)
-                self.disable_binding("b", self.bBindId)
+                # Disable the keyboard shortcuts while the popup is active.
+                logging.debug("Disabling bindings")
+                self.wBindId = self.enable_binding("w", self.do_nothing)
+                self.pBindId = self.enable_binding("p", self.do_nothing)
+                self.qBindId = self.enable_binding("q", self.do_nothing)
+                self.oBindId = self.enable_binding("o", self.do_nothing)
+                self.nBindId = self.enable_binding("n", self.do_nothing)
+                self.dBindId = self.enable_binding("d", self.do_nothing)
+                self.cBindId = self.enable_binding("c", self.do_nothing)
+                self.bBindId = self.enable_binding("b", self.do_nothing)
                     
                 self.master.wait_window(p.top)
-
-                # Enable the buttons.
-                for b in self.buttons:
-                    b["state"] = tk.NORMAL
 
                 # Enable the file menu.
                 menuBar.entryconfig("File", state="normal")
 
-                # Enable the keyboard shortcuts.
+                # Enable the keyboard shortcuts (and next/previous buttons).
+                logging.debug("Enabling bindings")
                 self.wBindId = self.enable_binding("w", self.ctrl_w)
                 self.pBindId = self.enable_binding("p", self.ctrl_p)
                 self.qBindId = self.enable_binding("q", self.ctrl_q)
                 self.oBindId = self.enable_binding("o", self.ctrl_o)
                 self.nBindId = self.enable_binding("n", self.ctrl_n)
-                self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
+                if (self.bingoType == "pictures" and len(self.displayPictures) > 0) or (self.bingoType == "words" and len(self.words) > 0):
+                    self.dBindId = self.enable_binding("d", self.ctrl_d)
+                    self.nextImage["state"] = tk.NORMAL
+                if len(self.calledItems) > 1:
+                    self.bBindId = self.enable_binding("b", self.ctrl_b)
+                    self.previousImage["state"] = tk.NORMAL
 
-                log_status("    Returning")
+                logging.debug("    Returning")
+                logging.debug("End of popup")
                 return p
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
+
+
+        def do_nothing(self, event):
+            """
+            This is what disabled keyboard shortcuts are set to.
+            """
+            pass
             
 
         def free_space_value(self):
@@ -1005,10 +1123,14 @@ try:
             wants a "free space" in the bingo cards.
             """
             try:
-                log_status("free_space_value returning " + str(self.freeSpacePopup.value))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                logging.debug("free_space_value returning " + str(self.freeSpacePopup.value))
+                logging.debug("End of free_space_value")
                 return self.freeSpacePopup.value
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
 
@@ -1018,10 +1140,14 @@ try:
             wants to create word or picture bingo cards.
             """
             try:
-                log_status("free_space_value returning " + str(self.bingoTypePopup.value))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                logging.debug("free_space_value returning " + str(self.bingoTypePopup.value))
+                logging.debug("End of bingo_type_value")
                 return self.bingoTypePopup.value
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
 
@@ -1030,10 +1156,14 @@ try:
             Returns the value that was for the number of bingo cards to create.
             """
             try:
-                log_status("free_space_value returning " + str(self.cardsPopup.value))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                logging.debug("free_space_value returning " + str(self.cardsPopup.value))
+                logging.debug("End of cards_value")
                 return self.cardsPopup.value
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1043,10 +1173,14 @@ try:
             wants a to interrupt the current game of bingo.
             """
             try:
-                log_status("free_space_value returning " + str(self.confirmPopup.value))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                logging.debug("free_space_value returning " + str(self.confirmPopup.value))
+                logging.debug("End of interrupt_value")
                 return self.confirmPopup.value
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1059,10 +1193,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_w.")
+                logging.debug("Start of ctrl_w")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 self.generate_bingo_cards("words")
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_w")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1075,10 +1213,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_p.")
+                logging.debug("Start of ctrl_p")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 self.generate_bingo_cards("pictures")
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_p")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1091,10 +1233,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_o.")
+                logging.debug("Start of ctrl_o")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 self.play_bingo()
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_o")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1107,10 +1253,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_q.")
+                logging.debug("Start of ctrl_q")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 root.quit()
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_q")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1123,10 +1273,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_n.")
+                logging.debug("Start of ctrl_n")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 self.generate_bingo_cards()
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_n")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1139,10 +1293,17 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_d.")
-                self.display_next_image_or_word()
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("Start of ctrl_d")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+
+                if self.gameInProgress:
+                    self.display_next_image_or_word()
+
+                logging.debug("End of ctrl_d")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1155,10 +1316,14 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_c.")
+                logging.debug("Start of ctrl_c")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
                 self.open_bingo_cards_folder()
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_c")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1171,29 +1336,17 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                log_status("Start of ctrl_b.")
-                self.display_previous_image_or_word()
-            except:
-                log_status(logging.exception("message"))
-                raise
+                logging.debug("Start of ctrl_b")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
 
+                if self.gameInProgress:
+                    self.display_previous_image_or_word()
 
-        def disable_binding(self, bindKey, bindId):
-            """
-            Disables a keyboard shortcut.
-
-            Required Parameters:
-                bindKey: String
-                    The key combination to be disabled.
-
-                bindId: String
-                    The ID from when the shortcut was enabled.
-            """
-            try:
-                log_status("Start of disable_binding: bindKey=" + bindKey + ", bindId=" + bindId)
-                self.unbind("<" + bindKey + ">", bindId)
-            except:
-                log_status(logging.exception("message"))
+                logging.debug("End of ctrl_b")
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
 
@@ -1209,14 +1362,18 @@ try:
                     The method or function to run when the key combination is pressed.
             """
             try:
-                log_status("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method))
+                logging.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                logging.debug("Called from " + calframe[1][3])
+                logging.debug("End of enable_binding")
                 return self.bind_all("<Control-" + bindKey + ">", method)
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
         
 
-    class popupWindow(object):
+    class PopupWindow(object):
         """
         A popup window that either displays a message for the user or asks
         for input in the form of an entry field or a choice of two options.
@@ -1262,8 +1419,8 @@ try:
                 if button2Text:
                     self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanupFalse)
                     self.b2.pack()
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
             
@@ -1272,11 +1429,11 @@ try:
             Sets the "value" of the popup window object to True and removes the popup window.
             """
             try:
-                log_status("    Cleaning up popup with value of True")
+                logging.debug("    Cleaning up popup with value of True")
                 self.value = True
                 self.top.destroy()
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
             
             
@@ -1285,11 +1442,11 @@ try:
             Sets the "value" of the popup window object to False and removes the popup window.
             """
             try:
-                log_status("    Cleaning up popup with value of False")
+                logging.debug("    Cleaning up popup with value of False")
                 self.value = False
                 self.top.destroy()
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
             
@@ -1299,31 +1456,46 @@ try:
             and removes the popup window.
             """
             try:
-                log_status("    Cleaning up popup with value of " + str(self.e.get()))
+                logging.debug("    Cleaning up popup with value of " + str(self.e.get()))
                 self.value = self.e.get()
                 self.top.destroy()
-            except:
-                log_status(logging.exception("message"))
+            except Exception as e:
+                logging.exception(logging.exception(e))
                 raise
 
+    class OneLineExceptionFormatter(logging.Formatter):
+        def formatException(self, exc_info):
+            """
+            Format an exception so that it prints on a single line.
+            """
+            result = super().formatException(exc_info)
+            return repr(result)  # or format into one line however you want to
 
-    log_status("Start", writeType="w")
+        def format(self, record):
+            s = super().format(record)
+            if record.exc_text:
+                s = s.replace('\n', '') + '|'
+            return s
+
+
+    configure_logging()
+    logging.debug("Start", writeType="w")
 
     fileFolderDict = {}
 
     # If the working_dir folder doesn't exist, create it.
     if not os.path.exists(os.path.dirname(__file__) + "//working_dir"):
-        log_status("Creating working_dir folder.")
+        logging.debug("Creating working_dir folder")
         os.makedirs(os.path.dirname(__file__) + "//working_dir")
 
     # If the fileFolderDict.p file doesn't exist, create it with an empty dictionary.
     if not os.path.exists(os.path.dirname(__file__) + "//fileFolderDict.p"):
-        log_status("Creating default fileFolderDict.p.")
+        logging.debug("Creating default fileFolderDict.p")
         pickle.dump(fileFolderDict, open(os.path.dirname(__file__) + "//fileFolderDict.p", "wb"), -1)
 
     # Load the data in fileFolderDict.p.
     if os.path.getsize("fileFolderDict.p") > 0:
-        log_status("Loading fileFolderDict.p.")
+        logging.debug("Loading fileFolderDict.p")
         with open("fileFolderDict.p", "rb") as f:
             unpickler = pickle.Unpickler(f)
             fileFolderDict = unpickler.load()
@@ -1383,13 +1555,10 @@ try:
 
     root.config(menu=menuBar)
     app.mainloop()
-    log_status("Closing application.")
+    logging.debug("Closing application")
     root.destroy()
-except:
-    error =str(sys.exc_info())
+except Exception as e:
+    error = str(sys.exc_info())
     if "application has been destroyed" not in error:
-        log_status("Logging error.")
-        errorFile = open("errors.txt", "a")
-        errorFile.write(str(datetime.datetime.now()) + ": " + error + "\n")
-        errorFile.close()
+        logging.exception(e)
         raise
