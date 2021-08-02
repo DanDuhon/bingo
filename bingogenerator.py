@@ -1,13 +1,3 @@
-def configure_logging():
-    fh = logging.FileHandler(os.path.dirname(os.path.realpath(__file__)) + "\log.txt", "w")
-    f = OneLineExceptionFormatter('%(asctime)s|%(levelname)s|%(message)s|',
-        '%d/%m/%Y %H:%M:%S')
-    fh.setFormatter(f)
-    root = logging.getLogger()
-    root.setLevel(logging.DEBUG)
-    root.addHandler(fh)
-
-
 try:
     import random
     import sys
@@ -27,10 +17,25 @@ try:
     from math import ceil, floor
 
 
+    class CustomAdapter(logging.LoggerAdapter):
+        def process(self, msg, kwargs):
+            my_context = kwargs.pop("caller", self.extra["caller"])
+            return "[%s] %s" % (my_context, msg), kwargs
+
+
+    logger = logging.getLogger(__name__)
+    formatter = logging.Formatter("%(asctime)s|%(levelname)s|%(message)s", "%d/%m/%Y %H:%M:%S")
+    fh = logging.FileHandler(os.path.dirname(os.path.realpath(__file__)) + "\log.txt", "w")
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
+    adapter = CustomAdapter(logger, {"caller": ""})
+    logger.setLevel(logging.DEBUG)
+
+
     class Application(tk.Frame):
         def __init__(self, master=None):
             try:
-                logging.debug("Initiating application")
+                adapter.debug("Initiating application")
                 tk.Frame.__init__(self, master)
                 self.pack()
                 self.buttons = []
@@ -82,9 +87,9 @@ try:
                     pickler = pickle.Pickler(f)
                     pickler.dump(fileFolderDict)
 
-                logging.debug("Application initiated")
+                adapter.debug("Application initiated")
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
 
@@ -107,10 +112,9 @@ try:
                     Whether there is a "free space" in the center square of the table.
             """
             try:
-                logging.debug("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of generate_html_card: cols=" + str(cols) + ", rows=" + str(rows) + ", freeSpace=" + str(freeSpace), caller=calframe[1][3])
                 
                 # Get a random sample of the words/pictures with which to fill in this card.
                 if self.bingoType == "pictures":
@@ -154,9 +158,9 @@ try:
                 # Add the location of the image to what will be saved in the .bingo file.
                 self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
 
-                logging.debug("End of generate_html_card")
+                adapter.debug("End of generate_html_card", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -166,17 +170,16 @@ try:
             to view or print them.
             """
             try:
-                logging.debug("Start of open_bingo_cards_folder")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of open_bingo_cards_folder", caller=calframe[1][3])
                 
                 if self.bingoFullPath:
                     webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
 
-                logging.debug("End of open_bingo_cards_folder")
+                adapter.debug("End of open_bingo_cards_folder", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -206,10 +209,9 @@ try:
                     The length in pixels of the longest side of the resized image.
             """
             try:
-                logging.debug("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of resize_image: folder=" + folder + ", destFolder=" + destFolder + ", picture=" + picture + ", pictureNum=" + str(pictureNum) + ", maxSideSize=" + str(maxSideSize), caller=calframe[1][3])
 
                 img = Image.open(folder + "/" + picture)
                 # See whether the height or width of the image is larger.
@@ -230,16 +232,16 @@ try:
                 resizedFileName = destFolder + "/" + pictureType + "_pictures/" + str(pictureNum) + "_" + os.path.splitext(folder + "/" + picture)[1]
                 img.save(resizedFileName)
                 
-                logging.debug("    Returning " + resizedFileName)
-                logging.debug("End of resize_image")
+                adapter.debug("    Returning " + resizedFileName)
+                adapter.debug("End of resize_image")
                 return resizedFileName
             except PIL.UnidentifiedImageError:
                 self.popup(picture + " is not a recognized image format!\r\nPlease make sure your Bingo images folder has ONLY images in it!", button1Text="Ok")
-                logging.debug("    Returning None")
-                logging.debug("End of resize_image")
+                adapter.debug("    Returning None")
+                adapter.debug("End of resize_image")
                 return None
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -249,10 +251,9 @@ try:
             Returns a String containing the file name.
             """
             try:
-                logging.debug("Start of save_bingo_file")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of save_bingo_file", caller=calframe[1][3])
                 
                 self.bingoTypePopup = self.popup("First save a file that will contain the information for this bingo game.", button1Text="Ok")
                 
@@ -260,7 +261,7 @@ try:
                 output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".bingo")
 
                 if not output:
-                    logging.debug("End of save_bingo_file (nothing done)")
+                    adapter.debug("End of save_bingo_file (nothing done)")
                     return
 
                 # Update the dict that tracks all file locations for this bingo game.
@@ -272,11 +273,11 @@ try:
                 # Update the dict that tracks all file locations for this bingo game.
                 self.save_dict_file(output.name)
 
-                logging.debug("    Returning " + output.name)
-                logging.debug("End of save_bingo_file")
+                adapter.debug("    Returning " + output.name)
+                adapter.debug("End of save_bingo_file")
                 return output.name
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -289,10 +290,9 @@ try:
                     The file name of the .bingo file.
             """
             try:
-                logging.debug("Start of save_dict_file: bingoName=" + bingoName)
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of save_dict_file: bingoName=" + bingoName, caller=calframe[1][3])
 
                 # Save the dict for this Bingo game that tracks locations of files.
                 pickler = open(bingoName, "wb")
@@ -309,9 +309,9 @@ try:
 
                 pickler.close()
 
-                logging.debug("End of save_dict_file")
+                adapter.debug("End of save_dict_file", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -326,10 +326,9 @@ try:
                 self.bingoFullPath
             """
             try:
-                logging.debug("Start of load_file")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of load_file", caller=calframe[1][3])
 
                 # Prompt the user for a .bingo file to load.
                 loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
@@ -352,11 +351,11 @@ try:
                 elif self.displayPictures:
                     self.bingoType = "pictures"
 
-                logging.debug("    Returning True")
-                logging.debug("End of load_file")
+                adapter.debug("    Returning True")
+                adapter.debug("End of load_file")
                 return True
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -368,10 +367,9 @@ try:
             they want to interrupt the game in progress.
             """
             try:
-                logging.debug("Start of interrupt_confirm")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of interrupt_confirm", caller=calframe[1][3])
 
                 # Check to see if there's a game in progress.
                 # If there is, prompt the user to confirm they want to stop the game.
@@ -380,19 +378,19 @@ try:
                     interrupt = self.interrupt_value()
 
                     if not interrupt:
-                        logging.debug("End of interrupt_confirm")
-                        logging.debug("    Returning False")
+                        adapter.debug("End of interrupt_confirm")
+                        adapter.debug("    Returning False")
                         return False
                     else:
-                        logging.debug("End of interrupt_confirm")
-                        logging.debug("    Returning True")
+                        adapter.debug("End of interrupt_confirm")
+                        adapter.debug("    Returning True")
                         return True
 
-                logging.debug("    Returning True")
-                logging.debug("End of interrupt_confirm")
+                adapter.debug("    Returning True")
+                adapter.debug("End of interrupt_confirm")
                 return True
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -403,10 +401,9 @@ try:
             with a different operation than was previously in progress.
             """
             try:
-                logging.debug("Start of reset")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of reset", caller=calframe[1][3])
 
                 # Reset everything. All variables, buttons, menu items, etc.
                 canvas.delete("all")
@@ -437,9 +434,9 @@ try:
                 fileMenu.entryconfig("Display last image/word", state=tk.DISABLED)
                 fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
 
-                logging.debug("End of reset")
+                adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -455,10 +452,9 @@ try:
             Returns a String of the path to the folder/file.
             """
             try:
-                logging.debug("Start of check_number_of_items")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of check_number_of_items", caller=calframe[1][3])
 
                 if self.bingoType == "pictures":
                     self.bingoTypePopup = self.popup("Now choose the folder that contains the pictures to use.", button1Text="Ok")
@@ -466,8 +462,8 @@ try:
                     while True:
                         folder = filedialog.askdirectory(title="Select the folders the pictures are in")
                         if not folder:
-                            logging.debug("    Returning False")
-                            logging.debug("End of check_number_of_items")
+                            adapter.debug("    Returning False")
+                            adapter.debug("End of check_number_of_items")
                             return None
 
                         # Set the pictures to the list of files in the folder.
@@ -485,8 +481,8 @@ try:
                         
                         break
 
-                    logging.debug("    Returning " + folder)
-                    logging.debug("End of check_number_of_items")
+                    adapter.debug("    Returning " + folder)
+                    adapter.debug("End of check_number_of_items")
                     return folder
                 elif self.bingoType == "words":
                     self.bingoTypePopup = self.popup("Now choose the file that contains the words to use.", button1Text="Ok")
@@ -494,8 +490,8 @@ try:
                         # Prompt the user for a file that contains the words to use.
                         file = filedialog.askopenfilename(title="Select the file the words are in.", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
                         if not file:
-                            logging.debug("    Returning False")
-                            logging.debug("End of check_number_of_items")
+                            adapter.debug("    Returning False")
+                            adapter.debug("End of check_number_of_items")
                             return None
 
                         f = open(file, "r").readlines()
@@ -515,11 +511,11 @@ try:
                         
                         break
 
-                    logging.debug("    Returning " + file)
-                    logging.debug("End of check_number_of_items")
+                    adapter.debug("    Returning " + file)
+                    adapter.debug("End of check_number_of_items")
                     return file
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -529,10 +525,9 @@ try:
             Returns an Integer of the number of cards.
             """
             try:
-                logging.debug("Start of get_number_of_cards")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of get_number_of_cards", caller=calframe[1][3])
 
                 # Prompt the user to enter the number of cards they want to create.
                 # Must be a positive whole number.
@@ -553,11 +548,11 @@ try:
 
                     break
 
-                logging.debug("    Returning " + str(cards))
-                logging.debug("End of get_number_of_cards")
+                adapter.debug("    Returning " + str(cards))
+                adapter.debug("End of get_number_of_cards")
                 return cards
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -573,10 +568,9 @@ try:
                     The number of Bingo cards to create.
             """
             try:
-                logging.debug("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of create_bingo_cards: freeSpace=" + str(freeSpace) + ", cards=" + str(cards), caller=calframe[1][3])
 
                 columns = 5
                 rows = 5
@@ -597,9 +591,9 @@ try:
                 self.progress.place_forget()
                 self.progressLabel.place_forget()
 
-                logging.debug("End of create_bingo_cards")
+                adapter.debug("End of create_bingo_cards", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -612,24 +606,23 @@ try:
                     The folder path to delete/create.
             """
             try:
-                logging.debug("Start of delete_create_folder: folderName=" + str(folderName))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of delete_create_folder: folderName=" + str(folderName), caller=calframe[1][3])
 
                 # If it already exists, delete it.
                 if os.path.exists(folderName) and not os.path.isfile(folderName):
-                    logging.debug("Deleting " + str(folderName))
+                    adapter.debug("Deleting " + str(folderName))
                     shutil.rmtree(folderName)
 
                 # If it doesn't exist, create it.
                 if not os.path.exists(folderName) and not os.path.isfile(folderName):
-                    logging.debug("Creating " + str(folderName))
+                    adapter.debug("Creating " + str(folderName))
                     os.makedirs(folderName)
 
-                logging.debug("End of delete_create_folder")
+                adapter.debug("End of delete_create_folder", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -643,14 +636,13 @@ try:
                     Default: None
             """
             try:
-                logging.debug("Start of generate_bingo_cards: bingoType=" + str(bingoType))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of generate_bingo_cards: bingoType=" + str(bingoType), caller=calframe[1][3])
 
                 # Check to see if we're interrupting a game by doing this.
                 if self.gameInProgress and not self.interrupt_confirm():
-                    logging.debug("End of generate_bingo_cards (nothing done)")
+                    adapter.debug("End of generate_bingo_cards (nothing done)")
                     return
 
                 # Reset everything.
@@ -662,7 +654,7 @@ try:
                 # If we chose not to save, reset everything and return.
                 if not dest:
                     self.reset()
-                    logging.debug("End of generate_bingo_cards (nothing done)")
+                    adapter.debug("End of generate_bingo_cards (nothing done)")
                     return
 
                 # If we got here via a generic "New" command, prompt the user for which type of Bingo.
@@ -683,7 +675,7 @@ try:
                 # If we didn't select a file/folder, reset and return.
                 if not items:
                     self.reset()
-                    logging.debug("End of generate_bingo_cards")
+                    adapter.debug("End of generate_bingo_cards")
                     return
 
                 # Create a folder named after the .bingo file under the working_dir folder.
@@ -729,8 +721,8 @@ try:
                         newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
                         if not newCardPicture:
                             self.reset()
-                            logging.debug("End of generate_bingo_cards")
-                            logging.debug("    Returning after reset")
+                            adapter.debug("End of generate_bingo_cards")
+                            adapter.debug("    Returning after reset")
                             return
                         
                         self.cardPictures.append(newCardPicture)
@@ -739,8 +731,8 @@ try:
                         newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
                         if not newHistoryPicture:
                             self.reset()
-                            logging.debug("End of generate_bingo_cards")
-                            logging.debug("    Returning after reset")
+                            adapter.debug("End of generate_bingo_cards")
+                            adapter.debug("    Returning after reset")
                             return
                         
                         self.historyPictures.append(newHistoryPicture)
@@ -749,8 +741,8 @@ try:
                         newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
                         if not newDisplayPicture:
                             self.reset()
-                            logging.debug("End of generate_bingo_cards")
-                            logging.debug("    Returning after reset")
+                            adapter.debug("End of generate_bingo_cards")
+                            adapter.debug("    Returning after reset")
                             return
                         
                         self.displayPictures.append(newDisplayPicture)
@@ -767,9 +759,9 @@ try:
                 # Everything should be set to go!
                 self.prep_for_play()
 
-                logging.debug("End of generate_bingo_cards")
+                adapter.debug("End of generate_bingo_cards", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
 
@@ -780,10 +772,9 @@ try:
             and display the next image or word.
             """
             try:
-                logging.debug("Start of prep_for_play")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of prep_for_play", caller=calframe[1][3])
 
                 # Randomize the lists that will be displayed when you click the "Display next image/word" button.
                 random.shuffle(self.displayPictures)
@@ -798,9 +789,9 @@ try:
                 self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
 
-                logging.debug("End of prep_for_play")
+                adapter.debug("End of prep_for_play", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -809,29 +800,28 @@ try:
             Loads a .bingo card fore viewing and/or playing.
             """
             try:
-                logging.debug("Start of play_bingo")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of play_bingo", caller=calframe[1][3])
 
                 # Check to see if there's already a game in progress.
                 if not self.interrupt_confirm():
-                    logging.debug("End of play_bingo (nothing done)")
+                    adapter.debug("End of play_bingo (nothing done)")
                     return
 
                 self.reset()
 
                 # Get a .bingo file to play.
                 if not self.load_file():
-                    logging.debug("End of play_bingo (nothing done)")
+                    adapter.debug("End of play_bingo (nothing done)")
                     return
 
                 # Set everything up!
                 self.prep_for_play()
 
-                logging.debug("End of play_bingo")
+                adapter.debug("End of play_bingo", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -840,17 +830,16 @@ try:
             Displays the next item in the randomized list of items while playing Bingo.
             """
             try:
-                logging.debug("Start of display_next_image_or_word")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of display_next_image_or_word", caller=calframe[1][3])
 
                 self.gameInProgress = True
                 self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.bBindId = self.enable_binding("b", self.ctrl_b)
 
                 if len(self.displayPictures) == 0:
-                    logging.debug("End of display_next_image_or_word (nothing done)")
+                    adapter.debug("End of display_next_image_or_word (nothing done)")
                     return
 
                 # Remove the instructions if they're on screen.
@@ -926,12 +915,12 @@ try:
                     self.nextImage["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
                     self.gameInProgress = False
-                    logging.debug("End of display_next_image_or_word")
+                    adapter.debug("End of display_next_image_or_word")
                     return
 
-                logging.debug("End of display_next_image_or_word")
+                adapter.debug("End of display_next_image_or_word", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -940,13 +929,12 @@ try:
             A "go back" button to use while playing Bingo.
             """
             try:
-                logging.debug("Start of display_previous_image_or_word")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of display_previous_image_or_word", caller=calframe[1][3])
 
                 if len(self.calledItems) == 1:
-                    logging.debug("End of display_previous_image_or_word (nothing done)")
+                    adapter.debug("End of display_previous_image_or_word (nothing done)")
                     return
 
                 self.gameInProgress = True
@@ -997,9 +985,9 @@ try:
                     self.nextImage["state"] = tk.NORMAL
                     fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
 
-                logging.debug("End of display_previous_image_or_word")
+                adapter.debug("End of display_previous_image_or_word", caller=calframe[1][3])
             except:
-                logging.exception("message")
+                adapter.exception("message")
                 raise
                    
 
@@ -1008,10 +996,9 @@ try:
             Create the buttons for displaying the next/last item while playing Bingo.
             """
             try:
-                logging.debug("Start of create_buttons")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of create_buttons", caller=calframe[1][3])
 
                 self.previousImage = tk.Button(self)
                 self.previousImage["text"] = "Back to the last image/word"
@@ -1029,9 +1016,9 @@ try:
                 self.nextImage["state"] = tk.DISABLED
                 self.buttons.append(self.nextImage)
 
-                logging.debug("End of create_buttons")
+                adapter.debug("End of create_buttons", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
 
@@ -1057,10 +1044,9 @@ try:
                     Default: None
             """
             try:
-                logging.debug("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text), caller=calframe[1][3])
                 
                 p = PopupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
                 
@@ -1072,7 +1058,7 @@ try:
                 menuBar.entryconfig("File", state=tk.DISABLED)
 
                 # Disable the keyboard shortcuts while the popup is active.
-                logging.debug("Disabling bindings")
+                adapter.debug("Disabling bindings")
                 self.wBindId = self.enable_binding("w", self.do_nothing)
                 self.pBindId = self.enable_binding("p", self.do_nothing)
                 self.qBindId = self.enable_binding("q", self.do_nothing)
@@ -1088,7 +1074,7 @@ try:
                 menuBar.entryconfig("File", state="normal")
 
                 # Enable the keyboard shortcuts (and next/previous buttons).
-                logging.debug("Enabling bindings")
+                adapter.debug("Enabling bindings")
                 self.wBindId = self.enable_binding("w", self.ctrl_w)
                 self.pBindId = self.enable_binding("p", self.ctrl_p)
                 self.qBindId = self.enable_binding("q", self.ctrl_q)
@@ -1102,11 +1088,11 @@ try:
                     self.bBindId = self.enable_binding("b", self.ctrl_b)
                     self.previousImage["state"] = tk.NORMAL
 
-                logging.debug("    Returning")
-                logging.debug("End of popup")
+                adapter.debug("    Returning")
+                adapter.debug("End of popup")
                 return p
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1125,12 +1111,12 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
-                logging.debug("free_space_value returning " + str(self.freeSpacePopup.value))
-                logging.debug("End of free_space_value")
+                adapter.debug("Called from " + calframe[1][3])
+                adapter.debug("free_space_value returning " + str(self.freeSpacePopup.value))
+                adapter.debug("End of free_space_value")
                 return self.freeSpacePopup.value
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
 
@@ -1142,12 +1128,12 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
-                logging.debug("free_space_value returning " + str(self.bingoTypePopup.value))
-                logging.debug("End of bingo_type_value")
+                adapter.debug("Called from " + calframe[1][3])
+                adapter.debug("free_space_value returning " + str(self.bingoTypePopup.value))
+                adapter.debug("End of bingo_type_value")
                 return self.bingoTypePopup.value
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
 
@@ -1158,12 +1144,12 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
-                logging.debug("free_space_value returning " + str(self.cardsPopup.value))
-                logging.debug("End of cards_value")
+                adapter.debug("Called from " + calframe[1][3])
+                adapter.debug("free_space_value returning " + str(self.cardsPopup.value))
+                adapter.debug("End of cards_value")
                 return self.cardsPopup.value
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1175,12 +1161,12 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
-                logging.debug("free_space_value returning " + str(self.confirmPopup.value))
-                logging.debug("End of interrupt_value")
+                adapter.debug("Called from " + calframe[1][3])
+                adapter.debug("free_space_value returning " + str(self.confirmPopup.value))
+                adapter.debug("End of interrupt_value")
                 return self.confirmPopup.value
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1193,14 +1179,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_w")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_w", caller=calframe[1][3])
                 self.generate_bingo_cards("words")
-                logging.debug("End of ctrl_w")
+                adapter.debug("End of ctrl_w", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1213,14 +1198,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_p")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_p", caller=calframe[1][3])
                 self.generate_bingo_cards("pictures")
-                logging.debug("End of ctrl_p")
+                adapter.debug("End of ctrl_p", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1233,14 +1217,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_o")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_o", caller=calframe[1][3])
                 self.play_bingo()
-                logging.debug("End of ctrl_o")
+                adapter.debug("End of ctrl_o", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1253,14 +1236,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_q")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_q", caller=calframe[1][3])
                 root.quit()
-                logging.debug("End of ctrl_q")
+                adapter.debug("End of ctrl_q", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1273,14 +1255,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_n")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_n", caller=calframe[1][3])
                 self.generate_bingo_cards()
-                logging.debug("End of ctrl_n")
+                adapter.debug("End of ctrl_n", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1293,17 +1274,16 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_d")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_d", caller=calframe[1][3])
 
                 if self.gameInProgress:
                     self.display_next_image_or_word()
 
-                logging.debug("End of ctrl_d")
+                adapter.debug("End of ctrl_d", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1316,14 +1296,13 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_c")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_c", caller=calframe[1][3])
                 self.open_bingo_cards_folder()
-                logging.debug("End of ctrl_c")
+                adapter.debug("End of ctrl_c", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1336,17 +1315,16 @@ try:
                     The tkinter Event that is the trigger.
             """
             try:
-                logging.debug("Start of ctrl_b")
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
+                adapter.debug("Start of ctrl_b", caller=calframe[1][3])
 
                 if self.gameInProgress:
                     self.display_previous_image_or_word()
 
-                logging.debug("End of ctrl_b")
+                adapter.debug("End of ctrl_b", caller=calframe[1][3])
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
 
@@ -1362,14 +1340,13 @@ try:
                     The method or function to run when the key combination is pressed.
             """
             try:
-                logging.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method))
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                logging.debug("Called from " + calframe[1][3])
-                logging.debug("End of enable_binding")
+                adapter.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method), caller=calframe[1][3])
+                adapter.debug("End of enable_binding")
                 return self.bind_all("<Control-" + bindKey + ">", method)
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
         
 
@@ -1420,7 +1397,7 @@ try:
                     self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanupFalse)
                     self.b2.pack()
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
             
@@ -1429,11 +1406,13 @@ try:
             Sets the "value" of the popup window object to True and removes the popup window.
             """
             try:
-                logging.debug("    Cleaning up popup with value of True")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("    Cleaning up popup with value of True")
                 self.value = True
                 self.top.destroy()
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
             
             
@@ -1442,11 +1421,13 @@ try:
             Sets the "value" of the popup window object to False and removes the popup window.
             """
             try:
-                logging.debug("    Cleaning up popup with value of False")
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("    Cleaning up popup with value of False")
                 self.value = False
                 self.top.destroy()
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
             
@@ -1456,46 +1437,33 @@ try:
             and removes the popup window.
             """
             try:
-                logging.debug("    Cleaning up popup with value of " + str(self.e.get()))
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("    Cleaning up popup with value of " + str(self.e.get()))
                 self.value = self.e.get()
                 self.top.destroy()
             except Exception as e:
-                logging.exception(logging.exception(e))
+                adapter.exception(e)
                 raise
 
-    class OneLineExceptionFormatter(logging.Formatter):
-        def formatException(self, exc_info):
-            """
-            Format an exception so that it prints on a single line.
-            """
-            result = super().formatException(exc_info)
-            return repr(result)  # or format into one line however you want to
 
-        def format(self, record):
-            s = super().format(record)
-            if record.exc_text:
-                s = s.replace('\n', '') + '|'
-            return s
-
-
-    configure_logging()
-    logging.debug("Start", writeType="w")
+    adapter.debug("Start")
 
     fileFolderDict = {}
 
     # If the working_dir folder doesn't exist, create it.
     if not os.path.exists(os.path.dirname(__file__) + "//working_dir"):
-        logging.debug("Creating working_dir folder")
+        adapter.debug("Creating working_dir folder")
         os.makedirs(os.path.dirname(__file__) + "//working_dir")
 
     # If the fileFolderDict.p file doesn't exist, create it with an empty dictionary.
     if not os.path.exists(os.path.dirname(__file__) + "//fileFolderDict.p"):
-        logging.debug("Creating default fileFolderDict.p")
+        adapter.debug("Creating default fileFolderDict.p")
         pickle.dump(fileFolderDict, open(os.path.dirname(__file__) + "//fileFolderDict.p", "wb"), -1)
 
     # Load the data in fileFolderDict.p.
     if os.path.getsize("fileFolderDict.p") > 0:
-        logging.debug("Loading fileFolderDict.p")
+        adapter.debug("Loading fileFolderDict.p")
         with open("fileFolderDict.p", "rb") as f:
             unpickler = pickle.Unpickler(f)
             fileFolderDict = unpickler.load()
@@ -1555,10 +1523,10 @@ try:
 
     root.config(menu=menuBar)
     app.mainloop()
-    logging.debug("Closing application")
+    adapter.debug("Closing application")
     root.destroy()
 except Exception as e:
     error = str(sys.exc_info())
     if "application has been destroyed" not in error:
-        logging.exception(e)
+        adapter.exception(e)
         raise
