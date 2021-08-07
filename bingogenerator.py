@@ -8,6 +8,7 @@ try:
     import webbrowser
     import logging
     import inspect
+    import fpdf
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
@@ -39,6 +40,7 @@ try:
                 tk.Frame.__init__(self, master)
                 self.pack()
                 self.buttons = set()
+                self.create_buttons()
                 self.bingoFullPath = None
                 self.bingoType = None
                 self.wordsFile = None
@@ -128,7 +130,7 @@ try:
                         res += "\t<tr>\n"
                         
                     if i == 12 and freeSpace:
-                        res += "\r\<td>FREE SPACE</td>\n"
+                        res += "\r<td>FREE SPACE</td>\n"
                     elif self.bingoType == "pictures":
                         # Embed the picture in the HTML file so it can be opened without the picture files existing.
                         res += "\t\t<td><img src=\"data:image/png;base64,{0}\"></td>\n".format(base64.b64encode(open(item, "rb").read()).decode("utf-8"))
@@ -161,6 +163,27 @@ try:
             except Exception as e:
                 adapter.exception(e)
                 raise
+
+        def combine_bingo_cards(self):
+            """
+            Combines the bingo card images into a single PDF for ease of printing.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of combine_bingo_cards", caller=calframe[1][3])
+
+                pdf = fpdf.FPDF()
+                for card in self.bingoCards:
+                    pdf.add_page(orientation="Landscape")
+                    pdf.image(card, w=193)
+                pdf.output(self.bingoFullPath + "\\bingo_cards\\all_bingo_cards.pdf", "F")
+
+                adapter.debug("End of combine_bingo_cards", caller=calframe[1][3])
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
 
 
         def open_bingo_cards_folder(self):
@@ -393,6 +416,37 @@ try:
                 raise
 
 
+        def new_game(self):
+            """
+            Partial reset to play another game of Bingo with newly randomized items.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of new_game", caller=calframe[1][3])
+                
+                if self.gameInProgress and not self.interrupt_confirm():
+                    adapter.debug("End of new_game (nothing done)")
+                    return
+
+                canvas.delete("all")
+                
+                if self.historyImages:
+                    for i in self.historyImages:
+                        i.place_forget()
+
+                self.calledItems = []
+                self.xOffset = 0
+                self.yOffset = 0
+
+                self.prep_for_play()
+
+                adapter.debug("End of reset", caller=calframe[1][3])
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
+
         def reset(self):
             """
             Resets various variables used by the Application to original values,
@@ -426,9 +480,18 @@ try:
                 self.gameInProgress = False
                 self.historyImages = []
 
-                fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
-                fileMenu.entryconfig("Display previous image/word", state=tk.DISABLED)
+                fileMenu.entryconfig("Display next item", state=tk.DISABLED)
+                fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
                 fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
+
+                self.nextItem["state"] = tk.DISABLED
+                self.previousItem["state"] = tk.DISABLED
+                self.newGame["state"] = tk.DISABLED
+                self.openCardsFolder["state"] = tk.DISABLED
+                
+                self.dBindId = self.enable_binding("d", self.do_nothing)
+                self.cBindId = self.enable_binding("c", self.do_nothing)
+                self.bBindId = self.enable_binding("b", self.do_nothing)
 
                 adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
@@ -583,6 +646,8 @@ try:
                     # Create a card.
                     self.generate_html_card(c, columns, rows, freeSpace)
 
+                self.combine_bingo_cards()
+
                 # Ditch the progress bar.
                 self.progress.place_forget()
                 self.progressLabel.place_forget()
@@ -691,8 +756,8 @@ try:
                 # If we're generating cards, there is no game in progress and
                 # we should not be able to ask for the next image/word.
                 self.gameInProgress = False
-                self.nextImage["state"] = tk.DISABLED
-                self.previousImage["state"] = tk.DISABLED
+                self.nextItem["state"] = tk.DISABLED
+                self.previousItem["state"] = tk.DISABLED
 
                 # Prompt the user for the number of Bingo cards they want to create.
                 cards = self.get_number_of_cards()
@@ -733,7 +798,7 @@ try:
                         
                         self.historyPictures.append(newHistoryPicture)
                         
-                        # Large images for display when you click the "Display next image/word" button.
+                        # Large images for display when you click the "Display next item" button.
                         newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
                         if not newDisplayPicture:
                             self.reset()
@@ -772,25 +837,27 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of prep_for_play", caller=calframe[1][3])
 
-                # Randomize the lists that will be displayed when you click the "Display next image/word" button.
+                # Randomize the lists that will be displayed when you click the "Display next item" button.
                 random.shuffle(self.displayPictures)
                 random.shuffle(self.words)
 
-                # Enable the buttons/menus to view the bingo cards as well as display the next image or word.
-                self.create_buttons()
-
                 if self.bingoType == "pictures":
-                    fileMenu.entryconfig("Display next image/word", command=lambda: app.display_next_image())
-                    fileMenu.entryconfig("Display previous image/word", command=lambda: app.display_previous_image())
+                    fileMenu.entryconfig("Display next item", command=lambda: app.display_next_image())
+                    fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_image())
                 else:
-                    fileMenu.entryconfig("Display next image/word", command=lambda: app.display_next_word())
-                    fileMenu.entryconfig("Display previous image/word", command=lambda: app.display_previous_word())
+                    fileMenu.entryconfig("Display next item", command=lambda: app.display_next_word())
+                    fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_word())
                     
-                fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+                fileMenu.entryconfig("Display next item", state=tk.NORMAL)
                 fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
                 
                 self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
+
+                self.nextItem["state"] = tk.NORMAL
+                self.previousItem["state"] = tk.NORMAL
+                self.newGame["state"] = tk.NORMAL
+                self.openCardsFolder["state"] = tk.NORMAL
 
                 adapter.debug("End of prep_for_play", caller=calframe[1][3])
             except Exception as e:
@@ -882,16 +949,16 @@ try:
                 # Enable the back button and keyboard shortcut.
                 if len(self.calledItems) > 1:
                     self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousImage["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display previous image/word", state=tk.NORMAL)
+                    self.previousItem["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
                 # If all items have been displayed, show a popup informing the user.
                 # Disable the display button/menu.
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
                 if len(items) == 0:
                     self.popup("That's all the pictures. Someone better have a Bingo by now!", button1Text="Ok")
-                    self.nextImage["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
+                    self.nextItem["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
                     adapter.debug("End of display_next_image")
                     return
@@ -949,16 +1016,16 @@ try:
                 # Enable the back button and keyboard shortcut.
                 if len(self.calledItems) > 1:
                     self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousWord["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display previous image/word", state=tk.NORMAL)
+                    self.previousItem["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
                 # If all items have been displayed, show a popup informing the user.
                 # Disable the display button/menu.
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
                 if len(items) == 0:
                     self.popup("That's all the words. Someone better have a Bingo by now!", button1Text="Ok")
-                    self.nextImage["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display next image/word", state=tk.DISABLED)
+                    self.nextItem["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
                     adapter.debug("End of display_next_word")
                     return
@@ -999,14 +1066,14 @@ try:
                 previousHistoryItem = self.historyImages.pop()
                 previousHistoryItem.place_forget()
 
-                if len(self.calledItems) < 2 and self.previousImage["state"] == tk.NORMAL:
-                    self.previousImage["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display previous image/word", state=tk.DISABLED)
+                if len(self.calledItems) < 2 and self.previousItem["state"] == tk.NORMAL:
+                    self.previousItem["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
-                if self.nextImage["state"] == tk.DISABLED:
+                if self.nextItem["state"] == tk.DISABLED:
                     self.dBindId = self.enable_binding("d", self.ctrl_d)
-                    self.nextImage["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+                    self.nextItem["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display next item", state=tk.NORMAL)
 
                 adapter.debug("End of display_previous_image", caller=calframe[1][3])
             except:
@@ -1050,14 +1117,14 @@ try:
                     iTo = min([(x + 1) * 15, len(self.calledItems)])
                     self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
-                if len(self.calledItems) < 2 and self.previousWord["state"] == tk.NORMAL:
-                    self.previousWord["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display previous image/word", state=tk.DISABLED)
+                if len(self.calledItems) < 2 and self.previousItem["state"] == tk.NORMAL:
+                    self.previousItem["state"] = tk.DISABLED
+                    fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
-                if self.nextWord["state"] == tk.DISABLED:
+                if self.nextItem["state"] == tk.DISABLED:
                     self.dBindId = self.enable_binding("d", self.ctrl_d)
-                    self.nextWord["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display next image/word", state=tk.NORMAL)
+                    self.nextItem["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display next item", state=tk.NORMAL)
 
                 adapter.debug("End of display_previous_word", caller=calframe[1][3])
             except:
@@ -1074,42 +1141,37 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of create_buttons", caller=calframe[1][3])
 
-                if self.bingoType == "pictures":
-                    if not hasattr(self, "previousImage"):
-                        self.previousImage = tk.Button(self)
-                        self.previousImage["text"] = "Previous image"
-                        self.previousImage["font"] = ("calibri", 16)
-                        self.previousImage["command"] = self.display_previous_image
-                        self.previousImage.pack({"side": "left"})
-                        self.previousImage["state"] = tk.NORMAL
-                        self.buttons.add(self.previousImage)
+                if not hasattr(self, "Open Bingo card folder"):
+                    self.openCardsFolder = ttk.Button(self)
+                    self.openCardsFolder["text"] = "Open Bingo card folder"
+                    self.openCardsFolder["command"] = self.open_bingo_cards_folder
+                    self.openCardsFolder.pack({"side": "left"}, padx=100)
+                    self.openCardsFolder["state"] = tk.DISABLED
+                    self.buttons.add(self.openCardsFolder)
 
-                    if not hasattr(self, "nextImage"):
-                        self.nextImage = tk.Button(self)
-                        self.nextImage["text"] = "Next image"
-                        self.nextImage["font"] = ("calibri", 16)
-                        self.nextImage["command"] = self.display_next_image
-                        self.nextImage.pack({"side": "left"})
-                        self.nextImage["state"] = tk.NORMAL
-                        self.buttons.add(self.nextImage)
-                else:
-                    if not hasattr(self, "previousWord"):
-                        self.previousWord = tk.Button(self)
-                        self.previousWord["text"] = "Previous word"
-                        self.previousWord["font"] = ("calibri", 16)
-                        self.previousWord["command"] = self.display_previous_word
-                        self.previousWord.pack({"side": "left"})
-                        self.previousWord["state"] = tk.NORMAL
-                        self.buttons.add(self.previousWord)
+                if not hasattr(self, "previousItem"):
+                    self.previousItem = ttk.Button(self)
+                    self.previousItem["text"] = "Previous item"
+                    self.previousItem["command"] = self.display_previous_image
+                    self.previousItem.pack({"side": "left"}, padx=(0, 10))
+                    self.previousItem["state"] = tk.DISABLED
+                    self.buttons.add(self.previousItem)
 
-                    if not hasattr(self, "nextWord"):
-                        self.nextWord = tk.Button(self)
-                        self.nextWord["text"] = "Next word"
-                        self.nextWord["font"] = ("calibri", 16)
-                        self.nextWord["command"] = self.display_next_word
-                        self.nextWord.pack({"side": "left"})
-                        self.nextWord["state"] = tk.NORMAL
-                        self.buttons.add(self.nextWord)
+                if not hasattr(self, "nextItem"):
+                    self.nextItem = ttk.Button(self)
+                    self.nextItem["text"] = "Next image"
+                    self.nextItem["command"] = self.display_next_image
+                    self.nextItem.pack({"side": "left"})
+                    self.nextItem["state"] = tk.DISABLED
+                    self.buttons.add(self.nextItem)
+
+                if not hasattr(self, "newGame"):
+                    self.newGame = ttk.Button(self)
+                    self.newGame["text"] = "New Game"
+                    self.newGame["command"] = self.new_game
+                    self.newGame.pack({"side": "left"}, padx=100)
+                    self.newGame["state"] = tk.DISABLED
+                    self.buttons.add(self.newGame)
 
                 adapter.debug("End of create_buttons", caller=calframe[1][3])
             except Exception as e:
@@ -1178,10 +1240,10 @@ try:
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
                 if (self.bingoType == "pictures" and len(self.displayPictures) > 0) or (self.bingoType == "words" and len(self.words) > 0):
                     self.dBindId = self.enable_binding("d", self.ctrl_d)
-                    self.nextImage["state"] = tk.NORMAL
+                    self.nextItem["state"] = tk.NORMAL
                 if len(self.calledItems) > 1:
                     self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousImage["state"] = tk.NORMAL
+                    self.previousItem["state"] = tk.NORMAL
 
                 adapter.debug("    Returning")
                 adapter.debug("End of popup")
@@ -1582,7 +1644,7 @@ try:
     To play Bingo:
     1. If you created the Bingo cards previously, click File --> Load Bingo button.
     2. Open a .bingo file you created.
-    3. Click the \"Display next image/word\" button until someone wins!"""
+    3. Click the \"Display next item\" button until someone wins!"""
 
     # Header for the HTML file used for the Bingo cards.
     head = ("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01//EN\" \"http://www.w3.org/TR/html4/strict.dtd\">\n"
@@ -1603,7 +1665,13 @@ try:
     config = imgkit.config(wkhtmltoimage=path_wkthmltoimage)
 
     root = tk.Tk()
-    canvas = tk.Canvas(root, width = 1000, height = 615)
+    root.title("Bingo Generator")
+    root.option_add("*tearOff", False)
+    root.tk.call("source", os.path.dirname(os.path.realpath(__file__)) + "\\azure.tcl")
+    root.attributes('-fullscreen',True)
+    style = ttk.Style(root)
+    style.theme_use("azure")
+    canvas = tk.Canvas(root, width = 1000, height = 650)
     canvas.pack()
     root.resizable(False, False)
     app = Application(master=root)
@@ -1613,13 +1681,12 @@ try:
     fileMenu.add_command(label="New Word Bingo Cards", command=lambda: app.generate_bingo_cards("words"), accelerator="Ctrl+W")
     fileMenu.add_command(label="New Picture Bingo Cards", command=lambda:app.generate_bingo_cards("pictures"), accelerator="Ctrl+P")
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
-    fileMenu.add_command(label="Display next image/word", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+D")
-    fileMenu.add_command(label="Display previous image/word", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+B")
+    fileMenu.add_command(label="Display next item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+D")
+    fileMenu.add_command(label="Display previous item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+B")
     fileMenu.add_command(label="Open bingo cards folder", command=lambda: app.open_bingo_cards_folder(), state=tk.DISABLED, accelerator="Ctrl+C")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
     menuBar.add_cascade(label="File", menu=fileMenu)
-
     root.config(menu=menuBar)
     app.mainloop()
     adapter.debug("Closing application")
