@@ -1550,15 +1550,15 @@ try:
                 if button1Text:
                     if entry:
                         self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_entry)
-                        self.b1.bind("<Return>", self.cleanup_entry)
                     else:
                         self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_true)
-                        if button1Text in ["Ok", "Yes"]:
-                            self.b1.bind("<Return>", self.cleanup_true)
+                        
                     if entry:
                         self.enable_binding("Return", self.cleanup_entry)
-                    if button1Text in ["Ok", "Yes"]:
+                    elif button1Text in ["Ok", "Yes"]:
                         self.enable_binding("Return", self.cleanup_true)
+                    elif button1Text == "Words":
+                        self.enable_binding("w", self.cleanup_true)
 
                     self.b1.pack()
 
@@ -1566,6 +1566,9 @@ try:
                     self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanup_false)
                     if button1Text == "No":
                         self.enable_binding("Escape", self.cleanup_false)
+                    elif button2Text == "Pictures":
+                        self.enable_binding("p", self.cleanup_false)
+
                     self.b2.pack()
             except Exception as e:
                 adapter.exception(e)
@@ -1606,6 +1609,8 @@ try:
                 self.value = True
                 self.enable_binding("Return", self.do_nothing)
                 self.enable_binding("Escape", self.do_nothing)
+                self.enable_binding("w", self.do_nothing)
+                self.enable_binding("p", self.do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
