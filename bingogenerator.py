@@ -1541,6 +1541,7 @@ try:
                 top = self.top = tk.Toplevel(master)
                 self.l = tk.Label(top, text=labelText, font=("calibri", 16))
                 self.l.pack()
+                self.l.focus_force()
 
                 if entry:
                     self.e = tk.Entry(top, font=("calibri", 16))
@@ -1548,36 +1549,70 @@ try:
 
                 if button1Text:
                     if entry:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupEntry)
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_entry)
+                        self.b1.bind("<Return>", self.cleanup_entry)
                     else:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanupTrue)
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_true)
+                        if button1Text in ["Ok", "Yes"]:
+                            self.b1.bind("<Return>", self.cleanup_true)
+                    if entry:
+                        self.enable_binding("Return", self.cleanup_entry)
+                    if button1Text in ["Ok", "Yes"]:
+                        self.enable_binding("Return", self.cleanup_true)
 
                     self.b1.pack()
 
                 if button2Text:
-                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanupFalse)
+                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanup_false)
+                    if button1Text == "No":
+                        self.enable_binding("Escape", self.cleanup_false)
                     self.b2.pack()
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
+
+        def enable_binding(self, bindKey, method):
+            """
+            Creates a keyboard shortcut.
+
+            Required Parameters:
+                bindKey: String
+                    The key combination to be bound to a method.
+
+                method: method/function
+                    The method or function to run when the key combination is pressed.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method), caller=calframe[1][3])
+                adapter.debug("End of enable_binding")
+                return root.bind_all("<" + bindKey + ">", method)
             except Exception as e:
                 adapter.exception(e)
                 raise
             
             
-        def cleanupTrue(self):
+        def cleanup_true(self, event=None):
             """
             Sets the "value" of the popup window object to True and removes the popup window.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of cleanup_true", caller=calframe[1][3])
                 adapter.debug("    Cleaning up popup with value of True")
                 self.value = True
+                self.enable_binding("Return", self.do_nothing)
+                self.enable_binding("Escape", self.do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
                 raise
             
             
-        def cleanupFalse(self):
+        def cleanup_false(self, event=None):
             """
             Sets the "value" of the popup window object to False and removes the popup window.
             """
@@ -1586,13 +1621,15 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("    Cleaning up popup with value of False")
                 self.value = False
+                self.enable_binding("Return", self.do_nothing)
+                self.enable_binding("Escape", self.do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
                 raise
 
             
-        def cleanupEntry(self):
+        def cleanup_entry(self, event=None):
             """
             Sets the "value" of the popup window object to what the user entered in the entry box
             and removes the popup window.
@@ -1602,10 +1639,19 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("    Cleaning up popup with value of " + str(self.e.get()))
                 self.value = self.e.get()
+                self.enable_binding("Return", self.do_nothing)
+                self.enable_binding("Escape", self.do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
                 raise
+
+
+        def do_nothing(self, event):
+            """
+            This is what disabled keyboard shortcuts are set to.
+            """
+            pass
 
 
     adapter.debug("Start")
