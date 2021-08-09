@@ -5,7 +5,6 @@ try:
     import shutil
     import base64
     import imgkit
-    import webbrowser
     import logging
     import inspect
     import fpdf
@@ -164,42 +163,29 @@ try:
                 adapter.exception(e)
                 raise
 
-        def combine_bingo_cards(self):
+        def save_bingo_cards(self):
             """
             Combines the bingo card images into a single PDF for ease of printing.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of combine_bingo_cards", caller=calframe[1][3])
+                adapter.debug("Start of save_bingo_cards", caller=calframe[1][3])
+
+                # Prompt the user to save the .pdf file.
+                output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".pdf")
+
+                if not output:
+                    adapter.debug("End of save_bingo_file (nothing done)")
+                    return
 
                 pdf = fpdf.FPDF()
                 for card in self.bingoCards:
                     pdf.add_page(orientation="Landscape")
                     pdf.image(card, w=193)
-                pdf.output(self.bingoFullPath + "\\bingo_cards\\all_bingo_cards.pdf", "F")
+                pdf.output(output, "F")
 
-                adapter.debug("End of combine_bingo_cards", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-
-        def open_bingo_cards_folder(self):
-            """
-            Opens the folder that contains the bingo cards, in case the user wants
-            to view or print them.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of open_bingo_cards_folder", caller=calframe[1][3])
-                
-                if self.bingoFullPath:
-                    webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
-
-                adapter.debug("End of open_bingo_cards_folder", caller=calframe[1][3])
+                adapter.debug("End of save_bingo_cards", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -482,12 +468,12 @@ try:
 
                 fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                 fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
-                fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
+                fileMenu.entryconfig("Save bingo cards to PDF", state=tk.DISABLED)
 
                 self.nextItem["state"] = tk.DISABLED
                 self.previousItem["state"] = tk.DISABLED
                 self.newGame["state"] = tk.DISABLED
-                self.openCardsFolder["state"] = tk.DISABLED
+                self.saveBingoCards["state"] = tk.DISABLED
                 
                 self.dBindId = self.enable_binding("d", self.do_nothing)
                 self.cBindId = self.enable_binding("c", self.do_nothing)
@@ -646,7 +632,7 @@ try:
                     # Create a card.
                     self.generate_html_card(c, columns, rows, freeSpace)
 
-                self.combine_bingo_cards()
+                self.save_bingo_cards()
 
                 # Ditch the progress bar.
                 self.progress.place_forget()
@@ -849,7 +835,7 @@ try:
                     fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_word())
                     
                 fileMenu.entryconfig("Display next item", state=tk.NORMAL)
-                fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
+                fileMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
                 
                 self.dBindId = self.enable_binding("d", self.ctrl_d)
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
@@ -857,7 +843,7 @@ try:
                 self.nextItem["state"] = tk.NORMAL
                 self.previousItem["state"] = tk.NORMAL
                 self.newGame["state"] = tk.NORMAL
-                self.openCardsFolder["state"] = tk.NORMAL
+                self.saveBingoCards["state"] = tk.NORMAL
 
                 adapter.debug("End of prep_for_play", caller=calframe[1][3])
             except Exception as e:
@@ -1141,13 +1127,13 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of create_buttons", caller=calframe[1][3])
 
-                if not hasattr(self, "Open Bingo card folder"):
-                    self.openCardsFolder = ttk.Button(self)
-                    self.openCardsFolder["text"] = "Open Bingo card folder"
-                    self.openCardsFolder["command"] = self.open_bingo_cards_folder
-                    self.openCardsFolder.pack({"side": "left"}, padx=100)
-                    self.openCardsFolder["state"] = tk.DISABLED
-                    self.buttons.add(self.openCardsFolder)
+                if not hasattr(self, "Save bingo cards to PDF"):
+                    self.saveBingoCards = ttk.Button(self)
+                    self.saveBingoCards["text"] = "Save bingo cards to PDF"
+                    self.saveBingoCards["command"] = self.save_bingo_cards
+                    self.saveBingoCards.pack({"side": "left"}, padx=100)
+                    self.saveBingoCards["state"] = tk.DISABLED
+                    self.buttons.add(self.saveBingoCards)
 
                 if not hasattr(self, "previousItem"):
                     self.previousItem = ttk.Button(self)
@@ -1456,7 +1442,7 @@ try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of ctrl_c", caller=calframe[1][3])
-                self.open_bingo_cards_folder()
+                self.save_bingo_cards()
                 adapter.debug("End of ctrl_c", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
@@ -1732,7 +1718,7 @@ try:
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
     fileMenu.add_command(label="Display next item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+D")
     fileMenu.add_command(label="Display previous item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+B")
-    fileMenu.add_command(label="Open bingo cards folder", command=lambda: app.open_bingo_cards_folder(), state=tk.DISABLED, accelerator="Ctrl+C")
+    fileMenu.add_command(label="Save bingo cards to PDF", command=lambda: app.save_bingo_cards(), state=tk.DISABLED, accelerator="Ctrl+C")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
     menuBar.add_cascade(label="File", menu=fileMenu)
