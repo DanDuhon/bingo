@@ -8,6 +8,7 @@ try:
     import logging
     import inspect
     import fpdf
+    import re
     import _pickle as pickle
     import tkinter as tk
     from tkinter import filedialog
@@ -21,6 +22,10 @@ try:
         def process(self, msg, kwargs):
             my_context = kwargs.pop("caller", self.extra["caller"])
             return "[%s] %s" % (my_context, msg), kwargs
+
+
+    class CustomException(Exception):
+        pass
 
 
     logger = logging.getLogger(__name__)
@@ -54,7 +59,7 @@ try:
                 self.yOffset = 0
                 self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
                 self.gameInProgress = False
-                self.historyImages = []
+                self.displayedHistoryPictures = []
                 self.historyCanvas = []
 
                 # Create the keyboard shortcuts.
@@ -66,23 +71,41 @@ try:
                 # These do nothing for now because they are only valid when a .bingo file has been loaded.
                 self.dBindId = self.enable_binding("d", self.do_nothing)
                 self.bBindId = self.enable_binding("b", self.do_nothing)
+                self.gBindId = self.enable_binding("g", self.do_nothing)
 
                 # Find all the .bingo files and associated folders that are stored in the dict
                 # and delete one if the other doesn't exist.
                 keysToDelete = []
                 for k, v in fileFolderDict.items():
                     if not os.path.exists(k) or not os.path.exists(v):
-                        if os.path.exists(k):
+                        if os.path.exists(k) and os.path.splitext(k) == ".bingo":
+                            adapter.warning("Deleting " + k)
                             os.remove(k)
                         if os.path.exists(v):
-                            shutil.rmtree(v)
+                            for root, dirs, files in os.walk(v):
+                                for file in files:
+                                    if re.match("bingo_generator_[0-9]+\.", file):
+                                        adapter.warning("Deleting " + os.path.abspath(os.path.join(root, file)))
+                                        os.remove(os.path.abspath(os.path.join(root, file)))
+
+                            for root, dirs, files in os.walk(v):
+                                for dir in dirs:
+                                    if not os.listdir(os.path.join(root, dir)):
+                                        adapter.warning("Deleting " + os.path.join(root, dir))
+                                        os.rmdir(os.path.join(root, dir))
+
+                            if not os.listdir(v):
+                                adapter.warning("Deleting " + v)
+                                os.rmdir(v)
 
                         keysToDelete.append(k)
 
                 for k in keysToDelete:
+                    adapter.warning("Deleting key " + k + " from fileFolderDict.")
                     del fileFolderDict[k]
 
                 # Save the dictionary in case there were any changes.
+                adapter.debug("Saving fileFolderDict.p")
                 with open("fileFolderDict.p", "wb") as f:
                     pickler = pickle.Pickler(f)
                     pickler.dump(fileFolderDict)
@@ -150,13 +173,13 @@ try:
                 outFile.close()
 
                 # Convert the HTML file to an image.
-                imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg", config=config)
+                imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".jpg", config=config)
 
                 # Delete the HTML file.
                 os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
 
                 # Add the location of the image to what will be saved in the .bingo file.
-                self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_card_" + str(cardNum) + ".jpg")
+                self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".jpg")
 
                 adapter.debug("End of generate_html_card", caller=calframe[1][3])
             except Exception as e:
@@ -183,7 +206,7 @@ try:
                 for card in self.bingoCards:
                     pdf.add_page(orientation="Landscape")
                     pdf.image(card, w=193)
-                pdf.output(output, "F")
+                pdf.output(output.name, "F")
 
                 adapter.debug("End of save_bingo_cards", caller=calframe[1][3])
             except Exception as e:
@@ -237,7 +260,7 @@ try:
                 img = img.resize((wSize, hSize), Image.ANTIALIAS)
 
                 # Save the resized image in this game's folder.
-                resizedFileName = destFolder + "/" + pictureType + "_pictures/" + str(pictureNum) + "_" + os.path.splitext(folder + "/" + picture)[1]
+                resizedFileName = destFolder + "/" + pictureType + "_pictures/bingo_generator_" + str(pictureNum) + os.path.splitext(folder + "/" + picture)[1]
                 img.save(resizedFileName)
                 
                 adapter.debug("    Returning " + resizedFileName)
@@ -342,6 +365,10 @@ try:
                 loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
                 if not loadFile:
                     return False
+                
+                if os.path.splitext(loadFile)[1] != ".bingo":
+                    self.popup("Invalid file type.\r\nPlease select a valid .bingo file!", button1Text="Ok")
+                    return False
 
                 pickler = open(loadFile, "rb")
                 pickleDict = pickle.load(pickler)
@@ -358,6 +385,10 @@ try:
                     self.bingoType = "words"
                 elif self.displayPictures:
                     self.bingoType = "pictures"
+                else:
+                    # Something's wrong with this .bingo file (like someone started to make one then exited)
+                    self.popup("Something is wrong with that .bingo file.\r\nPlease choose a different one or create a new one.", button1Text="Ok")
+                    raise CustomException("Bad .bingo file, resetting.")
 
                 adapter.debug("    Returning True")
                 adapter.debug("End of load_file")
@@ -417,15 +448,26 @@ try:
 
                 canvas.delete("all")
                 
-                if self.historyImages:
-                    for i in self.historyImages:
+                if self.displayedHistoryPictures:
+                    for i in self.displayedHistoryPictures:
                         i.place_forget()
+
+                if self.bingoType == "pictures":
+                    self.displayPictures += self.calledItems
+                    self.displayedHistoryPictures = []
+                else:
+                    self.words += self.calledItems
 
                 self.calledItems = []
                 self.xOffset = 0
                 self.yOffset = 0
 
                 self.prep_for_play()
+                
+                if self.bingoType == "pictures":
+                    self.display_next_image()
+                else:
+                    self.display_next_word()
 
                 adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
@@ -447,8 +489,8 @@ try:
                 # Reset everything. All variables, buttons, menu items, etc.
                 canvas.delete("all")
                 
-                if self.historyImages:
-                    for i in self.historyImages:
+                if self.displayedHistoryPictures:
+                    for i in self.displayedHistoryPictures:
                         i.place_forget()
                         
                 self.startText = canvas.create_text(10, 10, text=startText, font=("calibri", 16), anchor=tk.NW)
@@ -464,11 +506,12 @@ try:
                 self.xOffset = 0
                 self.yOffset = 0
                 self.gameInProgress = False
-                self.historyImages = []
+                self.displayedHistoryPictures = []
 
                 fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                 fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
                 fileMenu.entryconfig("Save bingo cards to PDF", state=tk.DISABLED)
+                fileMenu.entryconfig("New Game", state=tk.DISABLED)
 
                 self.nextItem["state"] = tk.DISABLED
                 self.previousItem["state"] = tk.DISABLED
@@ -478,6 +521,7 @@ try:
                 self.dBindId = self.enable_binding("d", self.do_nothing)
                 self.cBindId = self.enable_binding("c", self.do_nothing)
                 self.bBindId = self.enable_binding("b", self.do_nothing)
+                self.gBindId = self.enable_binding("g", self.do_nothing)
 
                 adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
@@ -632,8 +676,6 @@ try:
                     # Create a card.
                     self.generate_html_card(c, columns, rows, freeSpace)
 
-                self.save_bingo_cards()
-
                 # Ditch the progress bar.
                 self.progress.place_forget()
                 self.progressLabel.place_forget()
@@ -729,21 +771,27 @@ try:
                 # This is where the relevant files for this Bingo game will live.
                 workingDirName = os.path.splitext(os.path.basename(dest))[0]
                 self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
-                self.delete_create_folder(self.bingoFullPath)
+                #self.delete_create_folder(self.bingoFullPath)
 
                 # Create subfolders to house the different sizes of pictures.
                 if bingoType == "pictures":
-                    self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
-                    self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
-                    self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
+                    if not os.path.exists(self.bingoFullPath + "\\card_pictures") and not os.path.isfile(self.bingoFullPath + "\\card_pictures"):
+                        adapter.debug("Creating " + str(self.bingoFullPath + "\\card_pictures"))
+                        os.makedirs(self.bingoFullPath + "\\card_pictures")
+                    if not os.path.exists(self.bingoFullPath + "\\display_pictures") and not os.path.isfile(self.bingoFullPath + "\\display_pictures"):
+                        adapter.debug("Creating " + str(self.bingoFullPath + "\\display_pictures"))
+                        os.makedirs(self.bingoFullPath + "\\display_pictures")
+                    if not os.path.exists(self.bingoFullPath + "\\history_pictures") and not os.path.isfile(self.bingoFullPath + "\\history_pictures"):
+                        adapter.debug("Creating " + str(self.bingoFullPath + "\\history_pictures"))
+                        os.makedirs(self.bingoFullPath + "\\history_pictures")
+                #     self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
+                #     self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
+                #     self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
                     
-                self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
-
-                # If we're generating cards, there is no game in progress and
-                # we should not be able to ask for the next image/word.
-                self.gameInProgress = False
-                self.nextItem["state"] = tk.DISABLED
-                self.previousItem["state"] = tk.DISABLED
+                # self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
+                if not os.path.exists(self.bingoFullPath + "\\bingo_cards") and not os.path.isfile(self.bingoFullPath + "\\bingo_cards"):
+                    adapter.debug("Creating " + str(self.bingoFullPath + "\\bingo_cards"))
+                    os.makedirs(self.bingoFullPath + "\\bingo_cards")
 
                 # Prompt the user for the number of Bingo cards they want to create.
                 cards = self.get_number_of_cards()
@@ -841,8 +889,6 @@ try:
                 self.cBindId = self.enable_binding("c", self.ctrl_c)
 
                 self.nextItem["state"] = tk.NORMAL
-                self.previousItem["state"] = tk.NORMAL
-                self.newGame["state"] = tk.NORMAL
                 self.saveBingoCards["state"] = tk.NORMAL
 
                 adapter.debug("End of prep_for_play", caller=calframe[1][3])
@@ -891,18 +937,17 @@ try:
                 adapter.debug("Start of display_next_image", caller=calframe[1][3])
 
                 self.gameInProgress = True
-                self.dBindId = self.enable_binding("d", self.ctrl_d)
+                
                 self.bBindId = self.enable_binding("b", self.ctrl_b)
-
-                if len(self.displayPictures) == 0:
-                    adapter.debug("End of display_next_image (nothing done)")
-                    return
+                self.gBindId = self.enable_binding("g", self.ctrl_g)
+                self.previousItem["state"] = tk.NORMAL
+                self.newGame["state"] = tk.NORMAL
+                fileMenu.entryconfig("Display next item", state=tk.NORMAL)
+                fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
                     canvas.delete(self.startText)
-
-                items = self.displayPictures
                 
                 # This helps determine where the history images are displayed on screen.
                 # Needs to be calculated prior to self.calledItems changing.
@@ -930,24 +975,16 @@ try:
                 # Place this image at x,y coordinates on screen, starting near the top left,
                 # going across the screen to the right, then starting a new row.
                 hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
-                self.historyImages.append(hi)
-
-                # Enable the back button and keyboard shortcut.
-                if len(self.calledItems) > 1:
-                    self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousItem["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
+                self.displayedHistoryPictures.append(hi)
 
                 # If all items have been displayed, show a popup informing the user.
                 # Disable the display button/menu.
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
-                if len(items) == 0:
+                if len(self.displayPictures) == 0:
                     self.popup("That's all the pictures. Someone better have a Bingo by now!", button1Text="Ok")
                     self.nextItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
-                    adapter.debug("End of display_next_image")
-                    return
 
                 adapter.debug("End of display_next_image", caller=calframe[1][3])
             except Exception as e:
@@ -965,18 +1002,18 @@ try:
                 adapter.debug("Start of display_next_word", caller=calframe[1][3])
 
                 self.gameInProgress = True
-                self.dBindId = self.enable_binding("d", self.ctrl_d)
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
 
-                if len(self.displayPictures) == 0:
-                    adapter.debug("End of display_next_word (nothing done)")
-                    return
+                # Enable bindings/buttons/menu items that are now relevant.
+                self.bBindId = self.enable_binding("b", self.ctrl_b)
+                self.gBindId = self.enable_binding("g", self.ctrl_g)
+                self.previousItem["state"] = tk.NORMAL
+                self.newGame["state"] = tk.NORMAL
+                fileMenu.entryconfig("Display next item", state=tk.NORMAL)
+                fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
                     canvas.delete(self.startText)
-                    
-                items = self.words
                 
                 # Display the next word.
                 self.calledItems.append(self.words.pop())
@@ -999,22 +1036,14 @@ try:
                     iTo = min([(x + 1) * 15, len(self.calledItems)])
                     self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
-                # Enable the back button and keyboard shortcut.
-                if len(self.calledItems) > 1:
-                    self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousItem["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
-
                 # If all items have been displayed, show a popup informing the user.
                 # Disable the display button/menu.
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
-                if len(items) == 0:
+                if len(self.words) == 0:
                     self.popup("That's all the words. Someone better have a Bingo by now!", button1Text="Ok")
                     self.nextItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
-                    adapter.debug("End of display_next_word")
-                    return
 
                 adapter.debug("End of display_next_word", caller=calframe[1][3])
             except Exception as e:
@@ -1031,10 +1060,6 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of display_previous_image", caller=calframe[1][3])
 
-                if len(self.calledItems) == 1:
-                    adapter.debug("End of display_previous_image (nothing done)")
-                    return
-
                 self.gameInProgress = True
 
                 # Get the previous image.
@@ -1049,10 +1074,11 @@ try:
                 canvas.image = img
                 
                 # Remove the current image from the history.
-                previousHistoryItem = self.historyImages.pop()
+                previousHistoryItem = self.displayedHistoryPictures.pop()
                 previousHistoryItem.place_forget()
 
-                if len(self.calledItems) < 2 and self.previousItem["state"] == tk.NORMAL:
+                if len(self.calledItems) < 2:
+                    self.bBindId = self.enable_binding("b", self.ctrl_b)
                     self.previousItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
@@ -1103,7 +1129,8 @@ try:
                     iTo = min([(x + 1) * 15, len(self.calledItems)])
                     self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
-                if len(self.calledItems) < 2 and self.previousItem["state"] == tk.NORMAL:
+                if len(self.calledItems) < 2:
+                    self.bBindId = self.enable_binding("b", self.ctrl_b)
                     self.previousItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
@@ -1145,7 +1172,7 @@ try:
 
                 if not hasattr(self, "nextItem"):
                     self.nextItem = ttk.Button(self)
-                    self.nextItem["text"] = "Next image"
+                    self.nextItem["text"] = "Next item"
                     self.nextItem["command"] = self.display_next_image
                     self.nextItem.pack({"side": "left"})
                     self.nextItem["state"] = tk.DISABLED
@@ -1209,6 +1236,7 @@ try:
                 self.dBindId = self.enable_binding("d", self.do_nothing)
                 self.cBindId = self.enable_binding("c", self.do_nothing)
                 self.bBindId = self.enable_binding("b", self.do_nothing)
+                self.gBindId = self.enable_binding("g", self.do_nothing)
                     
                 self.master.wait_window(p.top)
 
@@ -1228,6 +1256,9 @@ try:
                 if len(self.calledItems) > 1:
                     self.bBindId = self.enable_binding("b", self.ctrl_b)
                     self.previousItem["state"] = tk.NORMAL
+                if len(self.calledItems) > 0:
+                    self.gBindId = self.enable_binding("g", self.ctrl_g)
+                    self.newGame["state"] = tk.NORMAL
 
                 adapter.debug("    Returning")
                 adapter.debug("End of popup")
@@ -1306,6 +1337,25 @@ try:
                 adapter.debug("free_space_value returning " + str(self.confirmPopup.value))
                 adapter.debug("End of interrupt_value")
                 return self.confirmPopup.value
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
+
+        def ctrl_g(self, event):
+            """
+            Keyboard shortcut for creating a new set of word bingo cards.
+
+            Required Parameters:
+                event: tkinter.Event
+                    The tkinter Event that is the trigger.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of ctrl_g", caller=calframe[1][3])
+                self.new_game()
+                adapter.debug("End of ctrl_g", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1718,6 +1768,7 @@ try:
     fileMenu.add_command(label="Load Bingo File", command=app.play_bingo, accelerator="Ctrl+O")
     fileMenu.add_command(label="Display next item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+D")
     fileMenu.add_command(label="Display previous item", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+B")
+    fileMenu.add_command(label="New Game", command=lambda: app.do_nothing(), state=tk.DISABLED, accelerator="Ctrl+G")
     fileMenu.add_command(label="Save bingo cards to PDF", command=lambda: app.save_bingo_cards(), state=tk.DISABLED, accelerator="Ctrl+C")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
