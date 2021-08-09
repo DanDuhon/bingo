@@ -9,7 +9,7 @@ try:
     import inspect
     import fpdf
     import re
-    import _pickle as pickle
+    import pickle
     import tkinter as tk
     from tkinter import filedialog
     from tkinter import ttk
@@ -666,12 +666,12 @@ try:
                 
                 # Since I don't know how long this could take, display a progress bar.
                 self.progressLabel = tk.Label(root, text="Creating bingo cards..")
-                self.progressLabel.place(x=450, y=530)
+                self.progressLabel.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
                 self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-                self.progress.place(x=450,y=550)
+                self.progress.place(relx=0.50, rely=0.50, anchor=tk.CENTER)
 
                 for c in range(cards):
-                    self.progress["value"] = (c + 1) / cards
+                    self.progress["value"] = ((c + 1) / cards) * 100
                     root.update_idletasks()
                     # Create a card.
                     self.generate_html_card(c, columns, rows, freeSpace)
@@ -803,13 +803,13 @@ try:
                 if self.bingoType == "pictures":
                     # Since I don't know how long this could take, display a progress bar.
                     self.progressLabel = tk.Label(root, text="Processing images..")
-                    self.progressLabel.place(x=450, y=530)
+                    self.progressLabel.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
                     self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-                    self.progress.place(x=450,y=550)
+                    self.progress.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
                     
                     # Create the necessary files for picture Bingo:
                     for i, picture in enumerate(self.pictures):
-                        self.progress["value"] = i / len(self.pictures)
+                        self.progress["value"] = (i / len(self.pictures)) * 100
                         root.update_idletasks()
                         
                         # Medium images to be in the bingo cards.
@@ -942,8 +942,8 @@ try:
                 self.gBindId = self.enable_binding("g", self.ctrl_g)
                 self.previousItem["state"] = tk.NORMAL
                 self.newGame["state"] = tk.NORMAL
-                fileMenu.entryconfig("Display next item", state=tk.NORMAL)
                 fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
+                fileMenu.entryconfig("New Game", state=tk.NORMAL)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
@@ -1008,8 +1008,8 @@ try:
                 self.gBindId = self.enable_binding("g", self.ctrl_g)
                 self.previousItem["state"] = tk.NORMAL
                 self.newGame["state"] = tk.NORMAL
-                fileMenu.entryconfig("Display next item", state=tk.NORMAL)
                 fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
+                fileMenu.entryconfig("New Game", state=tk.NORMAL)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
