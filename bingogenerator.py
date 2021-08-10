@@ -81,22 +81,7 @@ try:
                         if os.path.exists(k) and os.path.splitext(k) == ".bingo":
                             adapter.warning("Deleting " + k)
                             os.remove(k)
-                        if os.path.exists(v):
-                            for root, dirs, files in os.walk(v):
-                                for file in files:
-                                    if re.match("bingo_generator_[0-9]+\.", file):
-                                        adapter.warning("Deleting " + os.path.abspath(os.path.join(root, file)))
-                                        os.remove(os.path.abspath(os.path.join(root, file)))
-
-                            for root, dirs, files in os.walk(v):
-                                for dir in dirs:
-                                    if not os.listdir(os.path.join(root, dir)):
-                                        adapter.warning("Deleting " + os.path.join(root, dir))
-                                        os.rmdir(os.path.join(root, dir))
-
-                            if not os.listdir(v):
-                                adapter.warning("Deleting " + v)
-                                os.rmdir(v)
+                        self.delete_unused_files_folders(v)
 
                         keysToDelete.append(k)
 
@@ -114,6 +99,25 @@ try:
             except Exception as e:
                 adapter.exception(e)
                 raise
+
+
+        def delete_unused_files_folders(self, rootDir):
+            if os.path.exists(rootDir):
+                for root, dirs, files in os.walk(rootDir):
+                    for file in files:
+                        if re.match("bingo_generator_[0-9]+\.", file):
+                            adapter.warning("Deleting " + os.path.abspath(os.path.join(root, file)))
+                            os.remove(os.path.abspath(os.path.join(root, file)))
+
+                for root, dirs, files in os.walk(rootDir):
+                    for dir in dirs:
+                        if not os.listdir(os.path.join(root, dir)):
+                            adapter.warning("Deleting " + os.path.join(root, dir))
+                            os.rmdir(os.path.join(root, dir))
+
+                if not os.listdir(rootDir):
+                    adapter.warning("Deleting " + rootDir)
+                    os.rmdir(rootDir)
             
 
         def generate_html_card(self, cardNum, cols, rows, freeSpace):
@@ -463,13 +467,14 @@ try:
                 self.yOffset = 0
 
                 self.prep_for_play()
-                
-                if self.bingoType == "pictures":
-                    self.display_next_image()
-                else:
-                    self.display_next_word()
 
-                adapter.debug("End of reset", caller=calframe[1][3])
+                fileMenu.entryconfig("New Game", state=tk.DISABLED)
+                self.previousItem["state"] = tk.DISABLED
+                self.gBindId = self.enable_binding("g", self.do_nothing)
+                
+                self.display_next_item()
+
+                adapter.debug("End of new_game", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -666,9 +671,9 @@ try:
                 
                 # Since I don't know how long this could take, display a progress bar.
                 self.progressLabel = tk.Label(root, text="Creating bingo cards..")
-                self.progressLabel.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
+                self.progressLabel.place(relx=0.50, rely=0.82, anchor=tk.CENTER)
                 self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-                self.progress.place(relx=0.50, rely=0.50, anchor=tk.CENTER)
+                self.progress.place(relx=0.50, rely=0.80, anchor=tk.CENTER)
 
                 for c in range(cards):
                     self.progress["value"] = ((c + 1) / cards) * 100
@@ -681,35 +686,6 @@ try:
                 self.progressLabel.place_forget()
 
                 adapter.debug("End of create_bingo_cards", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def delete_create_folder(self, folderName):
-            """
-            Looks for a folder.  If it exists, delete it.  Then if it doesn't exist, create it.
-            
-            Required Parameters:
-                folderName: String
-                    The folder path to delete/create.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of delete_create_folder: folderName=" + str(folderName), caller=calframe[1][3])
-
-                # If it already exists, delete it.
-                if os.path.exists(folderName) and not os.path.isfile(folderName):
-                    adapter.debug("Deleting " + str(folderName))
-                    shutil.rmtree(folderName)
-
-                # If it doesn't exist, create it.
-                if not os.path.exists(folderName) and not os.path.isfile(folderName):
-                    adapter.debug("Creating " + str(folderName))
-                    os.makedirs(folderName)
-
-                adapter.debug("End of delete_create_folder", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -774,22 +750,20 @@ try:
                 #self.delete_create_folder(self.bingoFullPath)
 
                 # Create subfolders to house the different sizes of pictures.
+                self.delete_unused_files_folders(self.bingoFullPath)
+
                 if bingoType == "pictures":
-                    if not os.path.exists(self.bingoFullPath + "\\card_pictures") and not os.path.isfile(self.bingoFullPath + "\\card_pictures"):
+                    if not os.path.exists(self.bingoFullPath + "\\card_pictures"):
                         adapter.debug("Creating " + str(self.bingoFullPath + "\\card_pictures"))
                         os.makedirs(self.bingoFullPath + "\\card_pictures")
-                    if not os.path.exists(self.bingoFullPath + "\\display_pictures") and not os.path.isfile(self.bingoFullPath + "\\display_pictures"):
+                    if not os.path.exists(self.bingoFullPath + "\\display_pictures"):
                         adapter.debug("Creating " + str(self.bingoFullPath + "\\display_pictures"))
                         os.makedirs(self.bingoFullPath + "\\display_pictures")
-                    if not os.path.exists(self.bingoFullPath + "\\history_pictures") and not os.path.isfile(self.bingoFullPath + "\\history_pictures"):
+                    if not os.path.exists(self.bingoFullPath + "\\history_pictures"):
                         adapter.debug("Creating " + str(self.bingoFullPath + "\\history_pictures"))
                         os.makedirs(self.bingoFullPath + "\\history_pictures")
-                #     self.delete_create_folder(self.bingoFullPath + "\\card_pictures")
-                #     self.delete_create_folder(self.bingoFullPath + "\\display_pictures")
-                #     self.delete_create_folder(self.bingoFullPath + "\\history_pictures")
-                    
-                # self.delete_create_folder(self.bingoFullPath + "\\bingo_cards")
-                if not os.path.exists(self.bingoFullPath + "\\bingo_cards") and not os.path.isfile(self.bingoFullPath + "\\bingo_cards"):
+                        
+                if not os.path.exists(self.bingoFullPath + "\\bingo_cards"):
                     adapter.debug("Creating " + str(self.bingoFullPath + "\\bingo_cards"))
                     os.makedirs(self.bingoFullPath + "\\bingo_cards")
 
@@ -803,9 +777,9 @@ try:
                 if self.bingoType == "pictures":
                     # Since I don't know how long this could take, display a progress bar.
                     self.progressLabel = tk.Label(root, text="Processing images..")
-                    self.progressLabel.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
+                    self.progressLabel.place(relx=0.50, rely=0.82, anchor=tk.CENTER)
                     self.progress = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=100, mode="determinate")
-                    self.progress.place(relx=0.50, rely=0.51, anchor=tk.CENTER)
+                    self.progress.place(relx=0.50, rely=0.80, anchor=tk.CENTER)
                     
                     # Create the necessary files for picture Bingo:
                     for i, picture in enumerate(self.pictures):
@@ -875,13 +849,8 @@ try:
                 random.shuffle(self.displayPictures)
                 random.shuffle(self.words)
 
-                if self.bingoType == "pictures":
-                    fileMenu.entryconfig("Display next item", command=lambda: app.display_next_image())
-                    fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_image())
-                else:
-                    fileMenu.entryconfig("Display next item", command=lambda: app.display_next_word())
-                    fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_word())
-                    
+                fileMenu.entryconfig("Display next item", command=lambda: app.display_next_item())
+                fileMenu.entryconfig("Display previous item", command=lambda: app.display_previous_item())
                 fileMenu.entryconfig("Display next item", state=tk.NORMAL)
                 fileMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
                 
@@ -927,158 +896,145 @@ try:
                 raise
 
 
-        def display_next_image(self):
+        def display_next_item(self):
             """
             Displays the next item in the randomized list of items while playing Bingo.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of display_next_image", caller=calframe[1][3])
+                adapter.debug("Start of display_next_item", caller=calframe[1][3])
 
                 self.gameInProgress = True
                 
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
                 self.gBindId = self.enable_binding("g", self.ctrl_g)
-                self.previousItem["state"] = tk.NORMAL
                 self.newGame["state"] = tk.NORMAL
-                fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
                 fileMenu.entryconfig("New Game", state=tk.NORMAL)
+
+                if len(self.calledItems) > 0:
+                    self.bBindId = self.enable_binding("b", self.ctrl_b)
+                    self.previousItem["state"] = tk.NORMAL
+                    fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
                     canvas.delete(self.startText)
                 
-                # This helps determine where the history images are displayed on screen.
-                # Needs to be calculated prior to self.calledItems changing.
-                self.xOffset = 52 * floor(len(self.calledItems) / 5)
-                self.yOffset = 50 * (len(self.calledItems) % 5)
-                
-                # Get the next image.
-                calledItem = self.displayPictures.pop()
-                self.calledItems.append(calledItem)
-                img = ImageTk.PhotoImage(Image.open(calledItem))
+                if self.bingoType == "pictures":
+                    # This helps determine where the history images are displayed on screen.
+                    # Needs to be calculated prior to self.calledItems changing.
+                    self.xOffset = 52 * floor(len(self.calledItems) / 5)
+                    self.yOffset = 50 * (len(self.calledItems) % 5)
+                    
+                    # Get the next image.
+                    calledItem = self.displayPictures.pop()
+                    self.calledItems.append(calledItem)
+                    img = ImageTk.PhotoImage(Image.open(calledItem))
 
-                # If an image has already been displayed, delete it so we're not just piling images on top of one another.
-                if len(self.calledItems) > 1:
-                    canvas.delete(self.displayCanvas)
+                    # If an image has already been displayed, delete it so we're not just piling images on top of one another.
+                    if len(self.calledItems) > 1:
+                        canvas.delete(self.displayCanvas)
 
-                # Display the image.
-                self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
-                canvas.image = img
+                    # Display the image.
+                    self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
+                    canvas.image = img
 
-                # Put the called images into the history.
-                hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/")))
-                hi = tk.Label(image=hImg)
-                hi.image = hImg
+                    # Put the called images into the history.
+                    hImg = ImageTk.PhotoImage(Image.open(calledItem.replace("/display_pictures/", "/history_pictures/")))
+                    hi = tk.Label(image=hImg)
+                    hi.image = hImg
 
-                # Place this image at x,y coordinates on screen, starting near the top left,
-                # going across the screen to the right, then starting a new row.
-                hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
-                self.displayedHistoryPictures.append(hi)
+                    # Place this image at x,y coordinates on screen, starting near the top left,
+                    # going across the screen to the right, then starting a new row.
+                    hi.place(x=5 + self.xOffset, y=10 + self.yOffset)
+                    self.displayedHistoryPictures.append(hi)
+                else:
+                    # Display the next word.
+                    self.calledItems.append(self.words.pop())
+                    if len(self.calledItems) > 1:
+                        canvas.delete(self.displayCanvas)
+                    self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
+
+                    # Put the called word into the history.
+                    for hc in self.historyCanvas:
+                        canvas.delete(hc)
+
+                    self.historyCanvas = []
+
+                    # Words are displayed down the left side of the screen,
+                    # then creating another column.
+                    for x in range(ceil(len(self.calledItems) / 15)):
+                        xCoord = (10 if x == 0 else x * 150)
+                        # Set the index range.
+                        iFrom = x * 15
+                        iTo = min([(x + 1) * 15, len(self.calledItems)])
+                        self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
                 # If all items have been displayed, show a popup informing the user.
                 # Disable the display button/menu.
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
-                if len(self.displayPictures) == 0:
-                    self.popup("That's all the pictures. Someone better have a Bingo by now!", button1Text="Ok")
+                if (self.bingoType == "pictures" and len(self.displayPictures) == 0) or (self.bingoType == "words" and len(self.words) == 0):
+                    self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
                     self.nextItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
 
-                adapter.debug("End of display_next_image", caller=calframe[1][3])
+                adapter.debug("End of display_next_item", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
 
 
-        def display_next_word(self):
-            """
-            Displays the next item in the randomized list of items while playing Bingo.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of display_next_word", caller=calframe[1][3])
-
-                self.gameInProgress = True
-
-                # Enable bindings/buttons/menu items that are now relevant.
-                self.bBindId = self.enable_binding("b", self.ctrl_b)
-                self.gBindId = self.enable_binding("g", self.ctrl_g)
-                self.previousItem["state"] = tk.NORMAL
-                self.newGame["state"] = tk.NORMAL
-                fileMenu.entryconfig("Display previous item", state=tk.NORMAL)
-                fileMenu.entryconfig("New Game", state=tk.NORMAL)
-
-                # Remove the instructions if they're on screen.
-                if self.startText:
-                    canvas.delete(self.startText)
-                
-                # Display the next word.
-                self.calledItems.append(self.words.pop())
-                if len(self.calledItems) > 1:
-                    canvas.delete(self.displayCanvas)
-                self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
-
-                # Put the called word into the history.
-                for hc in self.historyCanvas:
-                    canvas.delete(hc)
-
-                self.historyCanvas = []
-
-                # Words are displayed down the left side of the screen,
-                # then creating another column.
-                for x in range(ceil(len(self.calledItems) / 15)):
-                    xCoord = (10 if x == 0 else x * 150)
-                    # Set the index range.
-                    iFrom = x * 15
-                    iTo = min([(x + 1) * 15, len(self.calledItems)])
-                    self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
-
-                # If all items have been displayed, show a popup informing the user.
-                # Disable the display button/menu.
-                # Set the game as finished so you don't have to confirm if you generate/load from here.
-                if len(self.words) == 0:
-                    self.popup("That's all the words. Someone better have a Bingo by now!", button1Text="Ok")
-                    self.nextItem["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display next item", state=tk.DISABLED)
-                    self.gameInProgress = False
-
-                adapter.debug("End of display_next_word", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def display_previous_image(self):
+        def display_previous_item(self):
             """
             A "go back" button to use while playing Bingo.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of display_previous_image", caller=calframe[1][3])
+                adapter.debug("Start of display_previous_item", caller=calframe[1][3])
 
                 self.gameInProgress = True
 
-                # Get the previous image.
-                previousItem = self.calledItems.pop()
-                self.displayPictures.append(previousItem)
-                img = ImageTk.PhotoImage(Image.open(self.calledItems[-1]))
+                if self.bingoType == "pictures":
+                    # Get the previous image.
+                    previousItem = self.calledItems.pop()
+                    self.displayPictures.append(previousItem)
+                    img = ImageTk.PhotoImage(Image.open(self.calledItems[-1]))
 
-                canvas.delete(self.displayCanvas)
+                    canvas.delete(self.displayCanvas)
 
-                # Display the image.
-                self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
-                canvas.image = img
-                
-                # Remove the current image from the history.
-                previousHistoryItem = self.displayedHistoryPictures.pop()
-                previousHistoryItem.place_forget()
+                    # Display the image.
+                    self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
+                    canvas.image = img
+                    
+                    # Remove the current image from the history.
+                    previousHistoryItem = self.displayedHistoryPictures.pop()
+                    previousHistoryItem.place_forget()
+                else:
+                    # Display the last word.
+                    previousItem = self.calledItems.pop()
+                    self.words.append(previousItem)
+                    canvas.delete(self.displayCanvas)
+                    self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
+
+                    # Put the called word into the history.
+                    for hc in self.historyCanvas:
+                        canvas.delete(hc)
+
+                    self.historyCanvas = []
+
+                    # Words are displayed down the left side of the screen,
+                    # then creating another column.
+                    for x in range(ceil(len(self.calledItems) / 15)):
+                        xCoord = (10 if x == 0 else x * 150)
+                        # Set the index range.
+                        iFrom = x * 15
+                        iTo = min([(x + 1) * 15, len(self.calledItems)])
+                        self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
                 if len(self.calledItems) < 2:
-                    self.bBindId = self.enable_binding("b", self.ctrl_b)
+                    self.bBindId = self.enable_binding("b", self.do_nothing)
                     self.previousItem["state"] = tk.DISABLED
                     fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
@@ -1088,58 +1044,6 @@ try:
                     fileMenu.entryconfig("Display next item", state=tk.NORMAL)
 
                 adapter.debug("End of display_previous_image", caller=calframe[1][3])
-            except:
-                adapter.exception("message")
-                raise
-
-
-        def display_previous_word(self):
-            """
-            A "go back" button to use while playing Bingo.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of display_previous_word", caller=calframe[1][3])
-
-                if len(self.calledItems) == 1:
-                    adapter.debug("End of display_previous_word (nothing done)")
-                    return
-
-                self.gameInProgress = True
-
-                # Display the last word.
-                previousItem = self.calledItems.pop()
-                self.words.append(previousItem)
-                canvas.delete(self.displayCanvas)
-                self.displayCanvas = canvas.create_text(500, 500, text=self.calledItems[-1], font=("calibri", 40), anchor=tk.S)
-
-                # Put the called word into the history.
-                for hc in self.historyCanvas:
-                    canvas.delete(hc)
-
-                self.historyCanvas = []
-
-                # Words are displayed down the left side of the screen,
-                # then creating another column.
-                for x in range(ceil(len(self.calledItems) / 15)):
-                    xCoord = (10 if x == 0 else x * 150)
-                    # Set the index range.
-                    iFrom = x * 15
-                    iTo = min([(x + 1) * 15, len(self.calledItems)])
-                    self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
-
-                if len(self.calledItems) < 2:
-                    self.bBindId = self.enable_binding("b", self.ctrl_b)
-                    self.previousItem["state"] = tk.DISABLED
-                    fileMenu.entryconfig("Display previous item", state=tk.DISABLED)
-
-                if self.nextItem["state"] == tk.DISABLED:
-                    self.dBindId = self.enable_binding("d", self.ctrl_d)
-                    self.nextItem["state"] = tk.NORMAL
-                    fileMenu.entryconfig("Display next item", state=tk.NORMAL)
-
-                adapter.debug("End of display_previous_word", caller=calframe[1][3])
             except:
                 adapter.exception("message")
                 raise
@@ -1165,7 +1069,7 @@ try:
                 if not hasattr(self, "previousItem"):
                     self.previousItem = ttk.Button(self)
                     self.previousItem["text"] = "Previous item"
-                    self.previousItem["command"] = self.display_previous_image
+                    self.previousItem["command"] = self.display_previous_item
                     self.previousItem.pack({"side": "left"}, padx=(0, 10))
                     self.previousItem["state"] = tk.DISABLED
                     self.buttons.add(self.previousItem)
@@ -1173,7 +1077,7 @@ try:
                 if not hasattr(self, "nextItem"):
                     self.nextItem = ttk.Button(self)
                     self.nextItem["text"] = "Next item"
-                    self.nextItem["command"] = self.display_next_image
+                    self.nextItem["command"] = self.display_next_item
                     self.nextItem.pack({"side": "left"})
                     self.nextItem["state"] = tk.DISABLED
                     self.buttons.add(self.nextItem)
@@ -1469,10 +1373,7 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of ctrl_d", caller=calframe[1][3])
 
-                if self.bingoType == "pictures":
-                    self.display_next_image()
-                else:
-                    self.display_next_word()
+                self.display_next_item()
 
                 adapter.debug("End of ctrl_d", caller=calframe[1][3])
             except Exception as e:
@@ -1511,12 +1412,7 @@ try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of ctrl_b", caller=calframe[1][3])
-
-                if self.bingoType == "pictures":
-                    self.display_previous_image()
-                else:
-                    self.display_previous_word()
-
+                self.display_previous_item()
                 adapter.debug("End of ctrl_b", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
