@@ -907,7 +907,7 @@ try:
                 gameMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
                 gameMenu.entryconfig("New bingo cards", state=tk.NORMAL)
                 
-                self.rightBindId = enable_binding("Right", self.right_arrow)
+                self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
                 self.sBindId = enable_binding("Control-s", lambda x: self.keybind_call("s"))
                 self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
 
@@ -968,7 +968,7 @@ try:
                 gameMenu.entryconfig("New Game", state=tk.NORMAL)
 
                 if len(self.calledItems) > 0:
-                    self.leftBindId = enable_binding("Left", self.left_arrow)
+                    self.leftBindId = enable_binding("Left", lambda x: self.keybind_call("Left"))
                     self.previousItem["state"] = tk.NORMAL
                     gameMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
@@ -1095,7 +1095,7 @@ try:
                     gameMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
                 if self.nextItem["state"] == tk.DISABLED:
-                    self.rightBindId = enable_binding("Right", self.right_arrow)
+                    self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
                     self.nextItem["state"] = tk.NORMAL
                     gameMenu.entryconfig("Display next item", state=tk.NORMAL)
 
@@ -1216,11 +1216,11 @@ try:
                     self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
 
                 if (self.bingoType == "pictures" and len(self.displayPictures) > 0) or (self.bingoType == "words" and len(self.words) > 0):
-                    self.rightBindId = enable_binding("Right", self.right_arrow)
+                    self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
                     self.nextItem["state"] = tk.NORMAL
 
                 if len(self.calledItems) > 1:
-                    self.leftBindId = enable_binding("Left", self.left_arrow)
+                    self.leftBindId = enable_binding("Left", lambda x: self.keybind_call("Left"))
                     self.previousItem["state"] = tk.NORMAL
 
                 if len(self.calledItems) > 0:
@@ -1318,24 +1318,24 @@ try:
 
                 if button1Text:
                     if entry:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_entry)
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda x: self.cleanup("entry"))
                     else:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_true)
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda x: self.cleanup(True))
                         
                     if entry:
-                        enable_binding("Return", self.cleanup_entry)
+                        enable_binding("Return", lambda x: self.cleanup("entry"))
                     elif button1Text in ["Ok", "Yes"]:
-                        enable_binding("Return", self.cleanup_true)
+                        enable_binding("Return", lambda x: self.cleanup(True))
                         if button1Text == "Yes":
-                            enable_binding("y", self.cleanup_true)
+                            enable_binding("y", lambda x: self.cleanup(True))
 
                     self.b1.pack()
 
                 if button2Text:
-                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanup_false)
+                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=lambda x: self.cleanup(False))
                     if button2Text == "No":
-                        enable_binding("Escape", self.cleanup_false)
-                        enable_binding("n", self.cleanup_false)
+                        enable_binding("Escape", lambda x: self.cleanup(False))
+                        enable_binding("n", lambda x: self.cleanup(False))
 
                     self.b2.pack()
             except Exception as e:
@@ -1343,55 +1343,33 @@ try:
                 raise
             
             
-        def cleanup_true(self, event=None):
+        def cleanup(self, type, event=None):
             """
             Sets the "value" of the popup window object to True and removes the popup window.
+
+            Required Parameters:
+                type: String or Boolean
+                    Indicates what the popup window value will be set to.
+                    If "entry", the value of the entry box.
+                    If Boolean, the Boolean.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of cleanup_true", caller=calframe[1][3])
-                adapter.debug("    Cleaning up popup with value of True")
-                self.value = True
+                adapter.debug("Start of cleanup", caller=calframe[1][3])
+
+                if type == "entry":
+                    self.value = self.e.get()
+                else:
+                    self.value = type
+
+                adapter.debug("    Cleaning up popup with value of " + str(self.value))
                 enable_binding("Return", do_nothing)
                 enable_binding("Escape", do_nothing)
                 enable_binding("y", do_nothing)
-                self.top.destroy()
-            except Exception as e:
-                adapter.exception(e)
-                raise
-            
-            
-        def cleanup_false(self, event=None):
-            """
-            Sets the "value" of the popup window object to False and removes the popup window.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of cleanup_false", caller=calframe[1][3])
-                adapter.debug("    Cleaning up popup with value of False")
-                self.value = False
-                enable_binding("Escape", do_nothing)
                 enable_binding("n", do_nothing)
                 self.top.destroy()
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-            
-        def cleanup_entry(self, event=None):
-            """
-            Sets the "value" of the popup window object to what the user entered in the entry box
-            and removes the popup window.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("    Cleaning up popup with value of " + str(self.e.get()))
-                self.value = self.e.get()
-                enable_binding("Return", do_nothing)
-                self.top.destroy()
+                adapter.debug("End of cleanup", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
