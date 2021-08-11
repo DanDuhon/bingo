@@ -27,9 +27,34 @@ try:
         pass
 
 
-    def do_nothing(self, event=None):
+    def enable_binding(bindKey, method):
+        """
+        Sets a keyboard shortcut.
+
+        Required Parameters:
+            bindKey: String
+                The key combination to be bound to a method.
+
+            method: method/function
+                The method or function to run when the key combination is pressed.
+        """
+        try:
+            curframe = inspect.currentframe()
+            calframe = inspect.getouterframes(curframe, 2)
+            adapter.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method), caller=calframe[1][3])
+            adapter.debug("End of enable_binding")
+            return root.bind_all("<" + bindKey + ">", method)
+        except Exception as e:
+            adapter.exception(e)
+            raise
+
+
+    def do_nothing(event=None):
         """
         This is what disabled keyboard shortcuts are set to.
+        I made this because apparently you can't set them to None
+        after they've been set to something else.
+        And I was having issues with disabling bindings as well.
         """
         pass
 
@@ -70,16 +95,16 @@ try:
                 self.historyCanvas = []
 
                 # Create the keyboard shortcuts.
-                self.wBindId = self.enable_binding("Control-w", self.ctrl_w)
-                self.pBindId = self.enable_binding("Control-p", self.ctrl_p)
-                self.qBindId = self.enable_binding("Control-q", self.ctrl_q)
-                self.oBindId = self.enable_binding("Control-o", self.ctrl_o)
+                self.wBindId = enable_binding("Control-w", lambda x: self.keybind_call("w"))
+                self.pBindId = enable_binding("Control-p", lambda x: self.keybind_call("p"))
+                self.qBindId = enable_binding("Control-q", lambda x: self.keybind_call("q"))
+                self.oBindId = enable_binding("Control-o", lambda x: self.keybind_call("o"))
                 # These do nothing for now because they are only valid when a .bingo file has been loaded.
-                self.rightBindId = self.enable_binding("Right", do_nothing)
-                self.leftBindId = self.enable_binding("Left", do_nothing)
-                self.gBindId = self.enable_binding("Control-n", do_nothing)
-                self.sBindId = self.enable_binding("Control-s", do_nothing)
-                self.cBindId = self.enable_binding("Control-c", do_nothing)
+                self.rightBindId = enable_binding("Right", do_nothing)
+                self.leftBindId = enable_binding("Left", do_nothing)
+                self.gBindId = enable_binding("Control-n", do_nothing)
+                self.sBindId = enable_binding("Control-s", do_nothing)
+                self.cBindId = enable_binding("Control-c", do_nothing)
 
                 # Find all the .bingo files and associated folders that are stored in the dict
                 # and delete one if the other doesn't exist.
@@ -552,11 +577,11 @@ try:
                 self.newGame["state"] = tk.DISABLED
                 self.saveBingoCards["state"] = tk.DISABLED
                 
-                self.rightBindId = self.enable_binding("Right", do_nothing)
-                self.sBindId = self.enable_binding("Control-s", do_nothing)
-                self.leftBindId = self.enable_binding("Left", do_nothing)
-                self.nBindId = self.enable_binding("Control-n", do_nothing)
-                self.cBindId = self.enable_binding("Control-c", do_nothing)
+                self.rightBindId = enable_binding("Right", do_nothing)
+                self.sBindId = enable_binding("Control-s", do_nothing)
+                self.leftBindId = enable_binding("Left", do_nothing)
+                self.nBindId = enable_binding("Control-n", do_nothing)
+                self.cBindId = enable_binding("Control-c", do_nothing)
 
                 adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
@@ -882,9 +907,9 @@ try:
                 gameMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
                 gameMenu.entryconfig("New bingo cards", state=tk.NORMAL)
                 
-                self.rightBindId = self.enable_binding("Right", self.right_arrow)
-                self.sBindId = self.enable_binding("Control-s", self.ctrl_s)
-                self.cBindId = self.enable_binding("Control-c", self.ctrl_c)
+                self.rightBindId = enable_binding("Right", self.right_arrow)
+                self.sBindId = enable_binding("Control-s", lambda x: self.keybind_call("s"))
+                self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
 
                 self.nextItem["state"] = tk.NORMAL
                 self.saveBingoCards["state"] = tk.NORMAL
@@ -938,12 +963,12 @@ try:
 
                 self.gameInProgress = True
                 
-                self.nBindId = self.enable_binding("Control-n", self.ctrl_n)
+                self.nBindId = enable_binding("Control-n", lambda x: self.keybind_call("n"))
                 self.newGame["state"] = tk.NORMAL
                 gameMenu.entryconfig("New Game", state=tk.NORMAL)
 
                 if len(self.calledItems) > 0:
-                    self.leftBindId = self.enable_binding("Left", self.left_arrow)
+                    self.leftBindId = enable_binding("Left", self.left_arrow)
                     self.previousItem["state"] = tk.NORMAL
                     gameMenu.entryconfig("Display previous item", state=tk.NORMAL)
 
@@ -1065,12 +1090,12 @@ try:
                         self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
                 if len(self.calledItems) < 2:
-                    self.leftBindId = self.enable_binding("Left", do_nothing)
+                    self.leftBindId = enable_binding("Left", do_nothing)
                     self.previousItem["state"] = tk.DISABLED
                     gameMenu.entryconfig("Display previous item", state=tk.DISABLED)
 
                 if self.nextItem["state"] == tk.DISABLED:
-                    self.rightBindId = self.enable_binding("Right", self.right_arrow)
+                    self.rightBindId = enable_binding("Right", self.right_arrow)
                     self.nextItem["state"] = tk.NORMAL
                     gameMenu.entryconfig("Display next item", state=tk.NORMAL)
 
@@ -1165,14 +1190,14 @@ try:
 
                 # Disable the keyboard shortcuts while the popup is active.
                 adapter.debug("Disabling bindings")
-                self.wBindId = self.enable_binding("Control-w", do_nothing)
-                self.pBindId = self.enable_binding("Control-p", do_nothing)
-                self.oBindId = self.enable_binding("Control-o", do_nothing)
-                self.nBindId = self.enable_binding("Control-n", do_nothing)
-                self.rightBindId = self.enable_binding("Right", do_nothing)
-                self.sBindId = self.enable_binding("Control-s", do_nothing)
-                self.leftBindId = self.enable_binding("Left", do_nothing)
-                self.cBindId = self.enable_binding("Control-c", do_nothing)
+                self.wBindId = enable_binding("Control-w", do_nothing)
+                self.pBindId = enable_binding("Control-p", do_nothing)
+                self.oBindId = enable_binding("Control-o", do_nothing)
+                self.nBindId = enable_binding("Control-n", do_nothing)
+                self.rightBindId = enable_binding("Right", do_nothing)
+                self.sBindId = enable_binding("Control-s", do_nothing)
+                self.leftBindId = enable_binding("Left", do_nothing)
+                self.cBindId = enable_binding("Control-c", do_nothing)
                     
                 self.master.wait_window(p.top)
 
@@ -1182,24 +1207,24 @@ try:
 
                 # Enable the keyboard shortcuts (and next/previous buttons).
                 adapter.debug("Enabling bindings")
-                self.wBindId = self.enable_binding("Control-w", self.ctrl_w)
-                self.pBindId = self.enable_binding("Control-p", self.ctrl_p)
-                self.oBindId = self.enable_binding("Control-o", self.ctrl_o)
+                self.wBindId = enable_binding("Control-w", lambda x: self.keybind_call("w"))
+                self.pBindId = enable_binding("Control-p", lambda x: self.keybind_call("p"))
+                self.oBindId = enable_binding("Control-o", lambda x: self.keybind_call("o"))
 
                 if self.bingoType:
-                    self.cBindId = self.enable_binding("Control-s", self.ctrl_s)
-                    self.cBindId = self.enable_binding("Control-c", self.ctrl_c)
+                    self.cBindId = enable_binding("Control-s", lambda x: self.keybind_call("s"))
+                    self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
 
                 if (self.bingoType == "pictures" and len(self.displayPictures) > 0) or (self.bingoType == "words" and len(self.words) > 0):
-                    self.rightBindId = self.enable_binding("Right", self.right_arrow)
+                    self.rightBindId = enable_binding("Right", self.right_arrow)
                     self.nextItem["state"] = tk.NORMAL
 
                 if len(self.calledItems) > 1:
-                    self.leftBindId = self.enable_binding("Left", self.left_arrow)
+                    self.leftBindId = enable_binding("Left", self.left_arrow)
                     self.previousItem["state"] = tk.NORMAL
 
                 if len(self.calledItems) > 0:
-                    self.nBindId = self.enable_binding("Control-n", self.ctrl_n)
+                    self.nBindId = enable_binding("Control-n", lambda x: self.keybind_call("n"))
                     self.newGame["state"] = tk.NORMAL
 
                 adapter.debug("    Returning")
@@ -1210,11 +1235,15 @@ try:
                 raise
 
 
-        def ctrl_w(self, event):
+        def keybind_call(self, call, event=None):
             """
             Keyboard shortcut for creating a new set of word bingo cards.
 
             Required Parameters:
+                call: String
+                    The keybind activated.
+
+            Optional Parameters:
                 event: tkinter.Event
                     The tkinter Event that is the trigger.
             """
@@ -1222,182 +1251,27 @@ try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of ctrl_w", caller=calframe[1][3])
-                self.generate_bingo_cards(bingoType="words", gameExists=False)
+
+                if call == "w":
+                    self.generate_bingo_cards(bingoType="words", gameExists=False)
+                elif call == "p":
+                    self.generate_bingo_cards(bingoType="pictures", gameExists=False)
+                elif call == "c":
+                    self.generate_bingo_cards(bingoType=self.bingoType, gameExists=True)
+                elif call == "o":
+                    self.play_bingo()
+                elif call == "q":
+                    root.quit()
+                elif call == "n":
+                    self.new_game()
+                elif call == "s":
+                    self.save_bingo_cards()
+                elif call == "Right":
+                    self.display_next_item()
+                elif call == "Left":
+                    self.display_previous_item()
+
                 adapter.debug("End of ctrl_w", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_p(self, event):
-            """
-            Keyboard shortcut for creating a new set of picture bingo cards.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_p", caller=calframe[1][3])
-                self.generate_bingo_cards(bingoType="pictures", gameExists=False)
-                adapter.debug("End of ctrl_p", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_c(self, event):
-            """
-            Keyboard shortcut for creating a new set of bingo cards from an existing file.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_c", caller=calframe[1][3])
-                self.generate_bingo_cards(bingoType=self.bingoType, gameExists=True)
-                adapter.debug("End of ctrl_c", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_o(self, event):
-            """
-            Keyboard shortcut for opening a .bingo file for viewing and/or playing.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_o", caller=calframe[1][3])
-                self.play_bingo()
-                adapter.debug("End of ctrl_o", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_q(self, event):
-            """
-            Keyboard shortcut for exiting the program.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_q", caller=calframe[1][3])
-                root.quit()
-                adapter.debug("End of ctrl_q", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_n(self, event):
-            """
-            Keyboard shortcut for creating a new set of bingo cards. The type is to be determined.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_n", caller=calframe[1][3])
-                self.new_game()
-                adapter.debug("End of ctrl_n", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def right_arrow(self, event):
-            """
-            Keyboard shortcut for displaying the next item while playing bingo.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of right_arrow", caller=calframe[1][3])
-                self.display_next_item()
-                adapter.debug("End of right_arrow", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def ctrl_s(self, event):
-            """
-            Keyboard shortcut for saving the bingo cards to a PDF.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_s", caller=calframe[1][3])
-                self.save_bingo_cards()
-                adapter.debug("End of ctrl_s", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def left_arrow(self, event):
-            """
-            Keyboard shortcut for displaying the next item while playing bingo.
-
-            Required Parameters:
-                event: tkinter.Event
-                    The tkinter Event that is the trigger.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of left_arrow", caller=calframe[1][3])
-                self.display_previous_item()
-                adapter.debug("End of left_arrow", caller=calframe[1][3])
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def enable_binding(self, bindKey, method):
-            """
-            Creates a keyboard shortcut.
-
-            Required Parameters:
-                bindKey: String
-                    The key combination to be bound to a method.
-
-                method: method/function
-                    The method or function to run when the key combination is pressed.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method), caller=calframe[1][3])
-                adapter.debug("End of enable_binding")
-                return self.bind_all("<" + bindKey + ">", method)
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1449,47 +1323,21 @@ try:
                         self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=self.cleanup_true)
                         
                     if entry:
-                        self.enable_binding("Return", self.cleanup_entry)
+                        enable_binding("Return", self.cleanup_entry)
                     elif button1Text in ["Ok", "Yes"]:
-                        self.enable_binding("Return", self.cleanup_true)
+                        enable_binding("Return", self.cleanup_true)
                         if button1Text == "Yes":
-                            self.enable_binding("y", self.cleanup_true)
-                    elif button1Text == "Words":
-                        self.enable_binding("w", self.cleanup_true)
+                            enable_binding("y", self.cleanup_true)
 
                     self.b1.pack()
 
                 if button2Text:
                     self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=self.cleanup_false)
-                    if button1Text == "No":
-                        self.enable_binding("Escape", self.cleanup_false)
-                        self.enable_binding("n", self.cleanup_false)
-                    elif button2Text == "Pictures":
-                        self.enable_binding("p", self.cleanup_false)
+                    if button2Text == "No":
+                        enable_binding("Escape", self.cleanup_false)
+                        enable_binding("n", self.cleanup_false)
 
                     self.b2.pack()
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
-        def enable_binding(self, bindKey, method):
-            """
-            Creates a keyboard shortcut.
-
-            Required Parameters:
-                bindKey: String
-                    The key combination to be bound to a method.
-
-                method: method/function
-                    The method or function to run when the key combination is pressed.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of enable_binding: bindKey=" + bindKey + ", method=" + str(method), caller=calframe[1][3])
-                adapter.debug("End of enable_binding")
-                return root.bind_all("<" + bindKey + ">", method)
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1505,10 +1353,9 @@ try:
                 adapter.debug("Start of cleanup_true", caller=calframe[1][3])
                 adapter.debug("    Cleaning up popup with value of True")
                 self.value = True
-                self.enable_binding("Return", do_nothing)
-                self.enable_binding("Escape", do_nothing)
-                self.enable_binding("Control-w", do_nothing)
-                self.enable_binding("Control-p", do_nothing)
+                enable_binding("Return", do_nothing)
+                enable_binding("Escape", do_nothing)
+                enable_binding("y", do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
@@ -1522,10 +1369,11 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of cleanup_false", caller=calframe[1][3])
                 adapter.debug("    Cleaning up popup with value of False")
                 self.value = False
-                self.enable_binding("Return", do_nothing)
-                self.enable_binding("Escape", do_nothing)
+                enable_binding("Escape", do_nothing)
+                enable_binding("n", do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
@@ -1542,19 +1390,11 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("    Cleaning up popup with value of " + str(self.e.get()))
                 self.value = self.e.get()
-                self.enable_binding("Return", do_nothing)
-                self.enable_binding("Escape", do_nothing)
+                enable_binding("Return", do_nothing)
                 self.top.destroy()
             except Exception as e:
                 adapter.exception(e)
                 raise
-
-
-        def do_nothing(self, event):
-            """
-            This is what disabled keyboard shortcuts are set to.
-            """
-            pass
 
 
     adapter.debug("Start")
