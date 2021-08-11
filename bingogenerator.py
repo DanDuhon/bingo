@@ -378,7 +378,7 @@ try:
                 raise
 
 
-        def load_file(self):
+        def load_bingo_file(self):
             """
             Loads a .bingo file and sets the following variables in the Application:
                 self.bingoCards
@@ -391,7 +391,7 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of load_file", caller=calframe[1][3])
+                adapter.debug("Start of load_bingo_file", caller=calframe[1][3])
 
                 # Prompt the user for a .bingo file to load.
                 loadFile = filedialog.askopenfilename(initialdir=os.getcwd(), title="Select Bingo file to open", filetypes = [("Bingo files", ".bingo")])
@@ -424,7 +424,7 @@ try:
                     raise CustomException("Bad .bingo file, resetting.")
 
                 adapter.debug("    Returning True")
-                adapter.debug("End of load_file")
+                adapter.debug("End of load_bingo_file")
                 return loadFile
             except Exception as e:
                 adapter.exception(e)
@@ -744,7 +744,7 @@ try:
                 raise
 
 
-        def generate_bingo_cards(self, bingoType, gameExists):
+        def create_new_bingo_file(self, bingoType, gameExists):
             """
             Creates a new set of bingo cards.
 
@@ -758,12 +758,12 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of generate_bingo_cards: bingoType=" + str(bingoType), caller=calframe[1][3])
+                adapter.debug("Start of create_new_bingo_file: bingoType=" + str(bingoType), caller=calframe[1][3])
 
                 if not gameExists:
                     # Check to see if we're interrupting a game by doing this.
                     if self.gameInProgress and not self.interrupt_confirm():
-                        adapter.debug("End of generate_bingo_cards (nothing done)")
+                        adapter.debug("End of create_new_bingo_file (nothing done)")
                         return
 
                     # Reset everything.
@@ -775,7 +775,7 @@ try:
                     # If we chose not to save, reset everything and return.
                     if not self.bingoFile:
                         self.reset()
-                        adapter.debug("End of generate_bingo_cards (nothing done)")
+                        adapter.debug("End of create_new_bingo_file (nothing done)")
                         return
 
                     self.bingoType = bingoType
@@ -788,7 +788,7 @@ try:
                     # If we didn't select a file/folder, reset and return.
                     if not items:
                         self.reset()
-                        adapter.debug("End of generate_bingo_cards")
+                        adapter.debug("End of create_new_bingo_file")
                         return
 
                     # Create a folder named after the .bingo file under the working_dir folder.
@@ -797,7 +797,7 @@ try:
                     self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
                 else:
                     if not self.more_cards_confirm():
-                        adapter.debug("End of generate_bingo_cards (nothing done)")
+                        adapter.debug("End of create_new_bingo_file (nothing done)")
                         return
 
                 # Delete existing files/folders.
@@ -844,7 +844,7 @@ try:
                             newCardPicture = self.resize_image(items, self.bingoFullPath, picture, i, "card", 150)
                             if not newCardPicture:
                                 self.reset()
-                                adapter.debug("End of generate_bingo_cards")
+                                adapter.debug("End of create_new_bingo_file")
                                 adapter.debug("    Returning after reset")
                                 return
                             
@@ -854,7 +854,7 @@ try:
                             newHistoryPicture = self.resize_image(items, self.bingoFullPath, picture, i, "history", 50)
                             if not newHistoryPicture:
                                 self.reset()
-                                adapter.debug("End of generate_bingo_cards")
+                                adapter.debug("End of create_new_bingo_file")
                                 adapter.debug("    Returning after reset")
                                 return
                             
@@ -864,7 +864,7 @@ try:
                             newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
                             if not newDisplayPicture:
                                 self.reset()
-                                adapter.debug("End of generate_bingo_cards")
+                                adapter.debug("End of create_new_bingo_file")
                                 adapter.debug("    Returning after reset")
                                 return
                             
@@ -882,7 +882,7 @@ try:
                 # Everything should be set to go!
                 self.prep_for_play()
 
-                adapter.debug("End of generate_bingo_cards", caller=calframe[1][3])
+                adapter.debug("End of create_new_bingo_file", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -920,33 +920,33 @@ try:
                 raise
 
 
-        def play_bingo(self):
+        def load_bingo_game(self):
             """
             Loads a .bingo card fore viewing and/or playing.
             """
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of play_bingo", caller=calframe[1][3])
+                adapter.debug("Start of load_bingo_game", caller=calframe[1][3])
 
                 # Check to see if there's already a game in progress.
                 if not self.interrupt_confirm():
-                    adapter.debug("End of play_bingo (nothing done)")
+                    adapter.debug("End of load_bingo_game (nothing done)")
                     return
 
                 self.reset()
 
                 # Get a .bingo file to play.
-                self.bingoFile = self.load_file()
+                self.bingoFile = self.load_bingo_file()
                 if not self.bingoFile:
-                    adapter.debug("End of play_bingo (nothing done)")
+                    adapter.debug("End of load_bingo_game (nothing done)")
                     return
 
                 # Set everything up!
                 self.prep_for_play()
                 self.display_next_item()
 
-                adapter.debug("End of play_bingo", caller=calframe[1][3])
+                adapter.debug("End of load_bingo_game", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1253,13 +1253,13 @@ try:
                 adapter.debug("Start of ctrl_w", caller=calframe[1][3])
 
                 if call == "w":
-                    self.generate_bingo_cards(bingoType="words", gameExists=False)
+                    self.create_new_bingo_file(bingoType="words", gameExists=False)
                 elif call == "p":
-                    self.generate_bingo_cards(bingoType="pictures", gameExists=False)
+                    self.create_new_bingo_file(bingoType="pictures", gameExists=False)
                 elif call == "c":
-                    self.generate_bingo_cards(bingoType=self.bingoType, gameExists=True)
+                    self.create_new_bingo_file(bingoType=self.bingoType, gameExists=True)
                 elif call == "o":
-                    self.play_bingo()
+                    self.load_bingo_game()
                 elif call == "q":
                     root.quit()
                 elif call == "n":
@@ -1445,9 +1445,9 @@ try:
     menuBar = tk.Menu(root)
     fileMenu = tk.Menu(menuBar, tearoff=0)
     gameMenu = tk.Menu(menuBar, tearoff=0)
-    fileMenu.add_command(label="New word bingo cards", command=lambda: app.generate_bingo_cards(bingoType="words", gameExists=False), accelerator="Ctrl+W")
-    fileMenu.add_command(label="New picture bingo cards", command=lambda:app.generate_bingo_cards(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
-    fileMenu.add_command(label="Load bingo file", command=app.play_bingo, accelerator="Ctrl+O")
+    fileMenu.add_command(label="New word bingo cards", command=lambda: app.create_new_bingo_file(bingoType="words", gameExists=False), accelerator="Ctrl+W")
+    fileMenu.add_command(label="New picture bingo cards", command=lambda:app.create_new_bingo_file(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
+    fileMenu.add_command(label="Load bingo file", command=app.load_bingo_game, accelerator="Ctrl+O")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
 
@@ -1455,7 +1455,7 @@ try:
     gameMenu.add_command(label="Display next item", command=lambda: app.display_next_item(), state=tk.DISABLED, accelerator="Right Arrow")
     gameMenu.add_command(label="Display previous item", command=lambda: app.display_previous_item(), state=tk.DISABLED, accelerator="Left Arrow")
     gameMenu.add_separator()
-    gameMenu.add_command(label="New bingo cards", command=lambda: app.generate_bingo_cards(bingoType=app.bingoType, gameExists=True), state=tk.DISABLED, accelerator="Ctrl+C")
+    gameMenu.add_command(label="New bingo cards", command=lambda: app.create_new_bingo_file(bingoType=app.bingoType, gameExists=True), state=tk.DISABLED, accelerator="Ctrl+C")
     gameMenu.add_command(label="Save bingo cards to PDF", command=lambda: app.save_bingo_cards(), state=tk.DISABLED, accelerator="Ctrl+S")
 
     menuBar.add_cascade(label="File", menu=fileMenu)
