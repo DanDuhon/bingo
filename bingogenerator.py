@@ -95,16 +95,7 @@ try:
                 self.historyCanvas = []
 
                 # Create the keyboard shortcuts.
-                self.wBindId = enable_binding("Control-w", lambda x: self.keybind_call("w"))
-                self.pBindId = enable_binding("Control-p", lambda x: self.keybind_call("p"))
-                self.qBindId = enable_binding("Control-q", lambda x: self.keybind_call("q"))
-                self.oBindId = enable_binding("Control-o", lambda x: self.keybind_call("o"))
-                # These do nothing for now because they are only valid when a .bingo file has been loaded.
-                self.rightBindId = enable_binding("Right", do_nothing)
-                self.leftBindId = enable_binding("Left", do_nothing)
-                self.gBindId = enable_binding("Control-n", do_nothing)
-                self.sBindId = enable_binding("Control-s", do_nothing)
-                self.cBindId = enable_binding("Control-c", do_nothing)
+                self.set_bindings_buttons_menus(True)
 
                 # Find all the .bingo files and associated folders that are stored in the dict
                 # and delete one if the other doesn't exist.
@@ -134,23 +125,117 @@ try:
                 raise
 
 
+        def set_bindings_buttons_menus(self, enable):
+            """
+            Sets keybindings to the appropriate function.
+            Enables or disables buttons and menu items.
+
+            Required Parameters:
+                enable: Boolean
+                    Whether to enable to disable bindings.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of set_bindings_buttons_menus: enable=" + str(enable), caller=calframe[1][3])
+
+                # These are always "disabled" because they are only enabled during a popup.
+                enable_binding("Return", lambda: do_nothing())
+                enable_binding("Escape", lambda: do_nothing())
+                enable_binding("y", lambda: do_nothing())
+                enable_binding("n", lambda: do_nothing())
+
+                if enable:
+                    enable_binding("Control-w", lambda: self.keybind_call("w"))
+                    enable_binding("Control-p", lambda: self.keybind_call("p"))
+                    enable_binding("Control-q", lambda: self.keybind_call("q"))
+                    enable_binding("Control-o", lambda: self.keybind_call("o"))
+                else:
+                    enable_binding("Control-w", lambda: do_nothing())
+                    enable_binding("Control-p", lambda: do_nothing())
+                    enable_binding("Control-q", lambda: do_nothing())
+                    enable_binding("Control-o", lambda: do_nothing())
+
+                # if enable and len(self.calledItems) > 0 and self.newGame["state"] == tk.DISABLED:
+                #     enable_binding("Control-n", lambda x: self.keybind_call("n"))
+                #     self.newGame["state"] = tk.NORMAL
+
+                #     enable_binding("Control-c", lambda x: self.keybind_call("c"))
+                # elif not enable and self.newGame["state"] == tk.NORMAL:
+                #     enable_binding("Control-n", lambda: do_nothing())
+                #     self.newGame["state"] = tk.DISABLED
+
+                #     enable_binding("Control-c", lambda: do_nothing())
+                #     self.moreBingoCards["state"] = tk.DISABLED
+
+                # if enable and len(self.calledItems) > 1 and self.previousItem["state"] == tk.DISABLED:
+                #     enable_binding("Left", lambda x: self.keybind_call("Left"))
+                #     self.previousItem["state"] = tk.NORMAL
+                # elif not enable and self.previousItem["state"] == tk.NORMAL:
+                #     enable_binding("Left", lambda: do_nothing())
+                #     self.previousItem["state"] = tk.DISABLED
+
+                # if (enable
+                #     and self.gameInProgress
+                #     and (
+                #             (
+                #                 self.bingoType == "pictures"
+                #                 and len(self.displayPictures) > 0
+                #             )
+                #             or (
+                #                 self.bingoType == "words"
+                #                 and len(self.words) > 0
+                #             )
+                #         )
+                #     and self.nextItem["state"] == tk.DISABLED):
+                #     enable_binding("Right", lambda x: self.keybind_call("Right"))
+                #     gameMenu.entryconfig("Display next item", state=tk.NORMAL)
+                #     self.nextItem["state"] = tk.NORMAL
+                # elif not enable and self.nextItem["state"] == tk.NORMAL:
+                #     enable_binding("Right", lambda: do_nothing())
+                #     gameMenu.entryconfig("Display next item", state=tk.DISABLED)
+                #     self.nextItem["state"] = tk.DISABLED
+
+                adapter.debug("End of set_bindings_buttons_menus")
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
+
         def delete_unused_files_folders(self, rootDir):
-            if os.path.exists(rootDir):
-                for root, dirs, files in os.walk(rootDir):
-                    for file in files:
-                        if re.match("bingo_generator_[0-9]+\.", file):
-                            adapter.warning("Deleting " + os.path.abspath(os.path.join(root, file)))
-                            os.remove(os.path.abspath(os.path.join(root, file)))
+            """
+            Recursively delete orphaned files and folders used by this program.
 
-                for root, dirs, files in os.walk(rootDir):
-                    for dir in dirs:
-                        if not os.listdir(os.path.join(root, dir)):
-                            adapter.warning("Deleting " + os.path.join(root, dir))
-                            os.rmdir(os.path.join(root, dir))
+            Required Parameters:
+                rootDir: String
+                    The base path to remove files and folders from.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of delete_unused_files_folders: rootDir=" + rootDir, caller=calframe[1][3])
+                
+                if os.path.exists(rootDir):
+                    for root, dirs, files in os.walk(rootDir):
+                        for file in files:
+                            if re.match("bingo_generator_[0-9]+\.", file):
+                                adapter.warning("Deleting " + os.path.abspath(os.path.join(root, file)))
+                                os.remove(os.path.abspath(os.path.join(root, file)))
 
-                if not os.listdir(rootDir):
-                    adapter.warning("Deleting " + rootDir)
-                    os.rmdir(rootDir)
+                    for root, dirs, files in os.walk(rootDir):
+                        for dir in dirs:
+                            if not os.listdir(os.path.join(root, dir)):
+                                adapter.warning("Deleting " + os.path.join(root, dir))
+                                os.rmdir(os.path.join(root, dir))
+
+                    if not os.listdir(rootDir):
+                        adapter.warning("Deleting " + rootDir)
+                        os.rmdir(rootDir)
+
+                adapter.debug("End of delete_unused_files_folders", caller=calframe[1][3])
+            except Exception as e:
+                adapter.exception(e)
+                raise
             
 
         def generate_html_card(self, cardNum, freeSpace):
@@ -317,7 +402,7 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of save_bingo_file", caller=calframe[1][3])
                 
-                self.bingoTypePopup = self.popup("First save a file that will contain the information for this bingo game.", button1Text="Ok")
+                self.popup("First save a file that will contain the information for this bingo game.", button1Text="Ok")
                 
                 # Prompt the user to save the .bingo file.
                 output = filedialog.asksaveasfile(mode="w", initialdir=os.getcwd(), defaultextension=".bingo")
@@ -421,11 +506,16 @@ try:
                 else:
                     # Something's wrong with this .bingo file (like someone started to make one then exited)
                     self.popup("Something is wrong with that .bingo file.\r\nPlease choose a different one or create a new one.", button1Text="Ok")
+                    self.reset()
                     raise CustomException("Bad .bingo file, resetting.")
 
-                adapter.debug("    Returning True")
                 adapter.debug("End of load_bingo_file")
                 return loadFile
+            except KeyError as e:
+                adapter.exception(e)
+                self.popup("Something is wrong with that .bingo file.\r\nPlease choose a different one or create a new one.", button1Text="Ok")
+                self.reset()
+                raise CustomException("Bad .bingo file, resetting.")
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -446,9 +536,7 @@ try:
                 # Check to see if there's a game in progress.
                 # If there is, prompt the user to confirm they want to stop the game.
                 if self.gameInProgress:
-                    self.interruptPopup = self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No")
-
-                    if not self.interruptPopup.value:
+                    if not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
                         adapter.debug("End of interrupt_confirm")
                         adapter.debug("    Returning False")
                         return False
@@ -479,9 +567,7 @@ try:
 
                 # It would take a lot to be able to make new cards that are guaranteed to not match the ones
                 # we already made, even those chances are low, so let's just delete the existing ones.
-                self.moreCardsPopup = self.popup("This will delete existing cards and create new ones, are you sure?", button1Text="Yes", button2Text="No")
-
-                if not self.moreCardsPopup.value:
+                if not self.popup("This will delete existing cards and create new ones, are you sure?", button1Text="Yes", button2Text="No"):
                     adapter.debug("End of more_cards_confirm")
                     adapter.debug("    Returning False")
                     return False
@@ -565,24 +651,7 @@ try:
                 self.yOffset = 0
                 self.gameInProgress = False
                 self.displayedHistoryPictures = []
-
-                gameMenu.entryconfig("Display next item", state=tk.DISABLED)
-                gameMenu.entryconfig("Display previous item", state=tk.DISABLED)
-                gameMenu.entryconfig("Save bingo cards to PDF", state=tk.DISABLED)
-                gameMenu.entryconfig("New Game", state=tk.DISABLED)
-                gameMenu.entryconfig("New bingo cards", state=tk.DISABLED)
-
-                self.nextItem["state"] = tk.DISABLED
-                self.previousItem["state"] = tk.DISABLED
-                self.newGame["state"] = tk.DISABLED
-                self.saveBingoCards["state"] = tk.DISABLED
-                
-                self.rightBindId = enable_binding("Right", do_nothing)
-                self.sBindId = enable_binding("Control-s", do_nothing)
-                self.leftBindId = enable_binding("Left", do_nothing)
-                self.nBindId = enable_binding("Control-n", do_nothing)
-                self.cBindId = enable_binding("Control-c", do_nothing)
-
+                self.set_bindings_buttons_menus(True)
                 adapter.debug("End of reset", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
@@ -606,7 +675,7 @@ try:
                 adapter.debug("Start of check_number_of_items", caller=calframe[1][3])
 
                 if self.bingoType == "pictures":
-                    self.bingoTypePopup = self.popup("Now choose the folder that contains the pictures to use.", button1Text="Ok")
+                    self.popup("Now choose the folder that contains the pictures to use.", button1Text="Ok")
                     # Prompt the user for a folder of images to use.
                     while True:
                         folder = filedialog.askdirectory(title="Select the folders the pictures are in")
@@ -634,7 +703,7 @@ try:
                     adapter.debug("End of check_number_of_items")
                     return folder
                 elif self.bingoType == "words":
-                    self.bingoTypePopup = self.popup("Now choose the file that contains the words to use.", button1Text="Ok")
+                    self.popup("Now choose the file that contains the words to use.", button1Text="Ok")
                     while True:
                         # Prompt the user for a file that contains the words to use.
                         file = filedialog.askopenfilename(title="Select the file the words are in.", filetypes=[("Text files", "*.txt"), ("All files", "*.*")])
@@ -681,10 +750,8 @@ try:
                 # Prompt the user to enter the number of cards they want to create.
                 # Must be a positive whole number.
                 while True:
-                    self.cardsPopup = self.popup("Enter the number of Bingo cards to generate.", entry=True, button1Text="Ok")
-                    
                     try:
-                        cards = int(self.cardsPopup.value)
+                        cards = int(self.popup("Enter the number of Bingo cards to generate.", entry=True, button1Text="Ok"))
                     except ValueError:
                         self.popup("It has to be a positive whole number!", button1Text="Ok")
                         continue
@@ -861,7 +928,7 @@ try:
                             self.historyPictures.append(newHistoryPicture)
                             
                             # Large images for display when you click the "Display next item" button.
-                            newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 350)
+                            newDisplayPicture = self.resize_image(items, self.bingoFullPath, picture, i, "display", 325)
                             if not newDisplayPicture:
                                 self.reset()
                                 adapter.debug("End of create_new_bingo_file")
@@ -902,17 +969,8 @@ try:
                 # Randomize the lists that will be displayed when you click the "Display next item" button.
                 random.shuffle(self.displayPictures)
                 random.shuffle(self.words)
-
-                gameMenu.entryconfig("Display next item", state=tk.NORMAL)
-                gameMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
-                gameMenu.entryconfig("New bingo cards", state=tk.NORMAL)
                 
-                self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
-                self.sBindId = enable_binding("Control-s", lambda x: self.keybind_call("s"))
-                self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
-
-                self.nextItem["state"] = tk.NORMAL
-                self.saveBingoCards["state"] = tk.NORMAL
+                self.set_bindings_buttons_menus(True)
 
                 adapter.debug("End of prep_for_play", caller=calframe[1][3])
             except Exception as e:
@@ -962,15 +1020,7 @@ try:
                 adapter.debug("Start of display_next_item", caller=calframe[1][3])
 
                 self.gameInProgress = True
-                
-                self.nBindId = enable_binding("Control-n", lambda x: self.keybind_call("n"))
-                self.newGame["state"] = tk.NORMAL
-                gameMenu.entryconfig("New Game", state=tk.NORMAL)
-
-                if len(self.calledItems) > 0:
-                    self.leftBindId = enable_binding("Left", lambda x: self.keybind_call("Left"))
-                    self.previousItem["state"] = tk.NORMAL
-                    gameMenu.entryconfig("Display previous item", state=tk.NORMAL)
+                self.set_bindings_buttons_menus(True)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
@@ -992,7 +1042,7 @@ try:
                         canvas.delete(self.displayCanvas)
 
                     # Display the image.
-                    self.displayCanvas = canvas.create_image(500, 625, anchor=tk.S, image=img)
+                    self.displayCanvas = canvas.create_image(500, 600, anchor=tk.S, image=img)
                     canvas.image = img
 
                     # Put the called images into the history.
@@ -1031,8 +1081,6 @@ try:
                 # Set the game as finished so you don't have to confirm if you generate/load from here.
                 if (self.bingoType == "pictures" and len(self.displayPictures) == 0) or (self.bingoType == "words" and len(self.words) == 0):
                     self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
-                    self.nextItem["state"] = tk.DISABLED
-                    gameMenu.entryconfig("Display next item", state=tk.DISABLED)
                     self.gameInProgress = False
 
                 adapter.debug("End of display_next_item", caller=calframe[1][3])
@@ -1089,15 +1137,7 @@ try:
                         iTo = min([(x + 1) * 15, len(self.calledItems)])
                         self.historyCanvas.append(canvas.create_text(xCoord, 10, text="\n".join(self.calledItems[iFrom: iTo]), font=("calibri", 14), anchor=tk.NW))
 
-                if len(self.calledItems) < 2:
-                    self.leftBindId = enable_binding("Left", do_nothing)
-                    self.previousItem["state"] = tk.DISABLED
-                    gameMenu.entryconfig("Display previous item", state=tk.DISABLED)
-
-                if self.nextItem["state"] == tk.DISABLED:
-                    self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
-                    self.nextItem["state"] = tk.NORMAL
-                    gameMenu.entryconfig("Display next item", state=tk.NORMAL)
+                self.set_bindings_buttons_menus(True)
 
                 adapter.debug("End of display_previous_image", caller=calframe[1][3])
             except:
@@ -1114,12 +1154,18 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of create_buttons", caller=calframe[1][3])
 
+                if not hasattr(self, "Create more bingo cards"):
+                    self.moreBingoCards = ttk.Button(self)
+                    self.moreBingoCards["text"] = "Save bingo cards to PDF"
+                    self.moreBingoCards["command"] = self.save_bingo_cards
+                    self.moreBingoCards.pack({"side": "left"})
+                    self.buttons.add(self.moreBingoCards)
+
                 if not hasattr(self, "Save bingo cards to PDF"):
                     self.saveBingoCards = ttk.Button(self)
                     self.saveBingoCards["text"] = "Save bingo cards to PDF"
                     self.saveBingoCards["command"] = self.save_bingo_cards
-                    self.saveBingoCards.pack({"side": "left"}, padx=100)
-                    self.saveBingoCards["state"] = tk.DISABLED
+                    self.saveBingoCards.pack({"side": "left"}, padx=(10, 100))
                     self.buttons.add(self.saveBingoCards)
 
                 if not hasattr(self, "previousItem"):
@@ -1127,7 +1173,6 @@ try:
                     self.previousItem["text"] = "Previous item"
                     self.previousItem["command"] = self.display_previous_item
                     self.previousItem.pack({"side": "left"}, padx=(0, 10))
-                    self.previousItem["state"] = tk.DISABLED
                     self.buttons.add(self.previousItem)
 
                 if not hasattr(self, "nextItem"):
@@ -1135,15 +1180,13 @@ try:
                     self.nextItem["text"] = "Next item"
                     self.nextItem["command"] = self.display_next_item
                     self.nextItem.pack({"side": "left"})
-                    self.nextItem["state"] = tk.DISABLED
                     self.buttons.add(self.nextItem)
 
                 if not hasattr(self, "newGame"):
                     self.newGame = ttk.Button(self)
-                    self.newGame["text"] = "New Game"
+                    self.newGame["text"] = "New game"
                     self.newGame["command"] = self.new_game
                     self.newGame.pack({"side": "left"}, padx=100)
-                    self.newGame["state"] = tk.DISABLED
                     self.buttons.add(self.newGame)
 
                 adapter.debug("End of create_buttons", caller=calframe[1][3])
@@ -1180,56 +1223,16 @@ try:
                 
                 p = PopupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
                 
-                # Disable all buttons while the popup is active.
-                for b in self.buttons:
-                    b["state"] = tk.DISABLED
-
-                # Disable the menus while the popup is active.
-                menuBar.entryconfig("File", state=tk.DISABLED)
-                menuBar.entryconfig("Game", state=tk.DISABLED)
-
-                # Disable the keyboard shortcuts while the popup is active.
-                adapter.debug("Disabling bindings")
-                self.wBindId = enable_binding("Control-w", do_nothing)
-                self.pBindId = enable_binding("Control-p", do_nothing)
-                self.oBindId = enable_binding("Control-o", do_nothing)
-                self.nBindId = enable_binding("Control-n", do_nothing)
-                self.rightBindId = enable_binding("Right", do_nothing)
-                self.sBindId = enable_binding("Control-s", do_nothing)
-                self.leftBindId = enable_binding("Left", do_nothing)
-                self.cBindId = enable_binding("Control-c", do_nothing)
+                self.set_bindings_buttons_menus(False)
                     
                 self.master.wait_window(p.top)
 
-                # Enable the menus.
-                menuBar.entryconfig("File", state="normal")
-                menuBar.entryconfig("Game", state="normal")
-
                 # Enable the keyboard shortcuts (and next/previous buttons).
-                adapter.debug("Enabling bindings")
-                self.wBindId = enable_binding("Control-w", lambda x: self.keybind_call("w"))
-                self.pBindId = enable_binding("Control-p", lambda x: self.keybind_call("p"))
-                self.oBindId = enable_binding("Control-o", lambda x: self.keybind_call("o"))
-
-                if self.bingoType:
-                    self.cBindId = enable_binding("Control-s", lambda x: self.keybind_call("s"))
-                    self.cBindId = enable_binding("Control-c", lambda x: self.keybind_call("c"))
-
-                if (self.bingoType == "pictures" and len(self.displayPictures) > 0) or (self.bingoType == "words" and len(self.words) > 0):
-                    self.rightBindId = enable_binding("Right", lambda x: self.keybind_call("Right"))
-                    self.nextItem["state"] = tk.NORMAL
-
-                if len(self.calledItems) > 1:
-                    self.leftBindId = enable_binding("Left", lambda x: self.keybind_call("Left"))
-                    self.previousItem["state"] = tk.NORMAL
-
-                if len(self.calledItems) > 0:
-                    self.nBindId = enable_binding("Control-n", lambda x: self.keybind_call("n"))
-                    self.newGame["state"] = tk.NORMAL
+                self.set_bindings_buttons_menus(True)
 
                 adapter.debug("    Returning")
                 adapter.debug("End of popup")
-                return p
+                return p.value
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1318,24 +1321,24 @@ try:
 
                 if button1Text:
                     if entry:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda x: self.cleanup("entry"))
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda: self.cleanup("entry"))
                     else:
-                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda x: self.cleanup(True))
+                        self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda: self.cleanup(True))
                         
                     if entry:
-                        enable_binding("Return", lambda x: self.cleanup("entry"))
+                        enable_binding("Return", lambda: self.cleanup("entry"))
                     elif button1Text in ["Ok", "Yes"]:
-                        enable_binding("Return", lambda x: self.cleanup(True))
+                        enable_binding("Return", lambda: self.cleanup(True))
                         if button1Text == "Yes":
-                            enable_binding("y", lambda x: self.cleanup(True))
+                            enable_binding("y", lambda: self.cleanup(True))
 
                     self.b1.pack()
 
                 if button2Text:
-                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=lambda x: self.cleanup(False))
+                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=lambda: self.cleanup(False))
                     if button2Text == "No":
-                        enable_binding("Escape", lambda x: self.cleanup(False))
-                        enable_binding("n", lambda x: self.cleanup(False))
+                        enable_binding("Escape", lambda: self.cleanup(False))
+                        enable_binding("n", lambda: self.cleanup(False))
 
                     self.b2.pack()
             except Exception as e:
@@ -1345,7 +1348,7 @@ try:
             
         def cleanup(self, type, event=None):
             """
-            Sets the "value" of the popup window object to True and removes the popup window.
+            Sets the "value" of the popup window object and removes the popup window.
 
             Required Parameters:
                 type: String or Boolean
@@ -1364,11 +1367,8 @@ try:
                     self.value = type
 
                 adapter.debug("    Cleaning up popup with value of " + str(self.value))
-                enable_binding("Return", do_nothing)
-                enable_binding("Escape", do_nothing)
-                enable_binding("y", do_nothing)
-                enable_binding("n", do_nothing)
                 self.top.destroy()
+
                 adapter.debug("End of cleanup", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
@@ -1437,29 +1437,29 @@ try:
     root.tk.call("source", os.path.dirname(os.path.realpath(__file__)) + "\\azure.tcl")
     style = ttk.Style(root)
     style.theme_use("azure")
-    root.geometry("1000x700")
-    canvas = tk.Canvas(root, width = 1000, height = 650)
+    root.geometry("1000x650")
+    canvas = tk.Canvas(root, width = 1000, height = 600)
     canvas.pack()
     root.resizable(False, False)
     app = Application(master=root)
     menuBar = tk.Menu(root)
     fileMenu = tk.Menu(menuBar, tearoff=0)
-    gameMenu = tk.Menu(menuBar, tearoff=0)
+    # gameMenu = tk.Menu(menuBar, tearoff=0)
     fileMenu.add_command(label="New word bingo cards", command=lambda: app.create_new_bingo_file(bingoType="words", gameExists=False), accelerator="Ctrl+W")
-    fileMenu.add_command(label="New picture bingo cards", command=lambda:app.create_new_bingo_file(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
-    fileMenu.add_command(label="Load bingo file", command=app.load_bingo_game, accelerator="Ctrl+O")
+    fileMenu.add_command(label="New picture bingo cards", command=lambda: app.create_new_bingo_file(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
+    fileMenu.add_command(label="Open bingo file", command=lambda: app.load_bingo_game(), accelerator="Ctrl+O")
     fileMenu.add_separator()
     fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
 
-    gameMenu.add_command(label="New Game", command=lambda: app.new_game(), state=tk.DISABLED, accelerator="Ctrl+N")
-    gameMenu.add_command(label="Display next item", command=lambda: app.display_next_item(), state=tk.DISABLED, accelerator="Right Arrow")
-    gameMenu.add_command(label="Display previous item", command=lambda: app.display_previous_item(), state=tk.DISABLED, accelerator="Left Arrow")
-    gameMenu.add_separator()
-    gameMenu.add_command(label="New bingo cards", command=lambda: app.create_new_bingo_file(bingoType=app.bingoType, gameExists=True), state=tk.DISABLED, accelerator="Ctrl+C")
-    gameMenu.add_command(label="Save bingo cards to PDF", command=lambda: app.save_bingo_cards(), state=tk.DISABLED, accelerator="Ctrl+S")
+    # gameMenu.add_command(label="New game", command=lambda: app.new_game(), state=tk.DISABLED, accelerator="Ctrl+N")
+    # gameMenu.add_command(label="Display next item", command=lambda: app.display_next_item(), state=tk.DISABLED, accelerator="Right Arrow")
+    # gameMenu.add_command(label="Display previous item", command=lambda: app.display_previous_item(), state=tk.DISABLED, accelerator="Left Arrow")
+    # gameMenu.add_separator()
+    # gameMenu.add_command(label="Create more bingo cards", command=lambda: app.create_new_bingo_file(bingoType=app.bingoType, gameExists=True), state=tk.DISABLED, accelerator="Ctrl+C")
+    # gameMenu.add_command(label="Save bingo cards to PDF", command=lambda: app.save_bingo_cards(), state=tk.DISABLED, accelerator="Ctrl+S")
 
     menuBar.add_cascade(label="File", menu=fileMenu)
-    menuBar.add_cascade(label="Game", menu=gameMenu)
+    # menuBar.add_cascade(label="Game", menu=gameMenu)
     root.config(menu=menuBar)
     app.mainloop()
     adapter.debug("Closing application")
