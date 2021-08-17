@@ -140,61 +140,65 @@ try:
                 adapter.debug("Start of set_bindings_buttons_menus: enable=" + str(enable), caller=calframe[1][3])
 
                 # These are always "disabled" because they are only enabled during a popup.
-                enable_binding("Return", lambda: do_nothing())
-                enable_binding("Escape", lambda: do_nothing())
-                enable_binding("y", lambda: do_nothing())
-                enable_binding("n", lambda: do_nothing())
+                enable_binding("Return", lambda x: do_nothing())
+                enable_binding("Escape", lambda x: do_nothing())
+                enable_binding("y", lambda x: do_nothing())
+                enable_binding("n", lambda x: do_nothing())
 
                 if enable:
-                    enable_binding("Control-w", lambda: self.keybind_call("w"))
-                    enable_binding("Control-p", lambda: self.keybind_call("p"))
-                    enable_binding("Control-q", lambda: self.keybind_call("q"))
-                    enable_binding("Control-o", lambda: self.keybind_call("o"))
+                    enable_binding("Control-w", lambda x: self.keybind_call("w"))
+                    enable_binding("Control-p", lambda x: self.keybind_call("p"))
+                    enable_binding("Control-q", lambda x: self.keybind_call("q"))
+                    enable_binding("Control-o", lambda x: self.keybind_call("o"))
                 else:
-                    enable_binding("Control-w", lambda: do_nothing())
-                    enable_binding("Control-p", lambda: do_nothing())
-                    enable_binding("Control-q", lambda: do_nothing())
-                    enable_binding("Control-o", lambda: do_nothing())
+                    enable_binding("Control-w", lambda x: do_nothing())
+                    enable_binding("Control-p", lambda x: do_nothing())
+                    enable_binding("Control-q", lambda x: do_nothing())
+                    enable_binding("Control-o", lambda x: do_nothing())
 
-                # if enable and len(self.calledItems) > 0 and self.newGame["state"] == tk.DISABLED:
-                #     enable_binding("Control-n", lambda x: self.keybind_call("n"))
-                #     self.newGame["state"] = tk.NORMAL
+                if enable and len(self.calledItems) > 0:
+                    enable_binding("Control-n", lambda x: self.keybind_call("n"))
+                    self.newGame["state"] = tk.NORMAL
 
-                #     enable_binding("Control-c", lambda x: self.keybind_call("c"))
-                # elif not enable and self.newGame["state"] == tk.NORMAL:
-                #     enable_binding("Control-n", lambda: do_nothing())
-                #     self.newGame["state"] = tk.DISABLED
+                    enable_binding("Control-c", lambda x: self.keybind_call("c"))
+                    self.moreBingoCards["state"] = tk.NORMAL
 
-                #     enable_binding("Control-c", lambda: do_nothing())
-                #     self.moreBingoCards["state"] = tk.DISABLED
+                    enable_binding("Control-s", lambda x: self.keybind_call("s"))
+                    self.saveBingoCards["state"] = tk.NORMAL
+                else:
+                    enable_binding("Control-n", lambda x: do_nothing())
+                    self.newGame["state"] = tk.DISABLED
 
-                # if enable and len(self.calledItems) > 1 and self.previousItem["state"] == tk.DISABLED:
-                #     enable_binding("Left", lambda x: self.keybind_call("Left"))
-                #     self.previousItem["state"] = tk.NORMAL
-                # elif not enable and self.previousItem["state"] == tk.NORMAL:
-                #     enable_binding("Left", lambda: do_nothing())
-                #     self.previousItem["state"] = tk.DISABLED
+                    enable_binding("Control-c", lambda x: do_nothing())
+                    self.moreBingoCards["state"] = tk.DISABLED
 
-                # if (enable
-                #     and self.gameInProgress
-                #     and (
-                #             (
-                #                 self.bingoType == "pictures"
-                #                 and len(self.displayPictures) > 0
-                #             )
-                #             or (
-                #                 self.bingoType == "words"
-                #                 and len(self.words) > 0
-                #             )
-                #         )
-                #     and self.nextItem["state"] == tk.DISABLED):
-                #     enable_binding("Right", lambda x: self.keybind_call("Right"))
-                #     gameMenu.entryconfig("Display next item", state=tk.NORMAL)
-                #     self.nextItem["state"] = tk.NORMAL
-                # elif not enable and self.nextItem["state"] == tk.NORMAL:
-                #     enable_binding("Right", lambda: do_nothing())
-                #     gameMenu.entryconfig("Display next item", state=tk.DISABLED)
-                #     self.nextItem["state"] = tk.DISABLED
+                    enable_binding("Control-s", lambda x: do_nothing())
+                    self.saveBingoCards["state"] = tk.DISABLED
+
+                if enable and len(self.calledItems) > 1:
+                    enable_binding("Left", lambda x: self.keybind_call("Left"))
+                    self.previousItem["state"] = tk.NORMAL
+                else:
+                    enable_binding("Left", lambda x: do_nothing())
+                    self.previousItem["state"] = tk.DISABLED
+
+                if (enable
+                    and self.gameInProgress
+                    and (
+                            (
+                                self.bingoType == "pictures"
+                                and len(self.displayPictures) > 0
+                            )
+                            or (
+                                self.bingoType == "words"
+                                and len(self.words) > 0
+                            )
+                        )):
+                    enable_binding("Right", lambda x: self.keybind_call("Right"))
+                    self.nextItem["state"] = tk.NORMAL
+                else:
+                    enable_binding("Right", lambda x: do_nothing())
+                    self.nextItem["state"] = tk.DISABLED
 
                 adapter.debug("End of set_bindings_buttons_menus")
             except Exception as e:
@@ -521,38 +525,6 @@ try:
                 raise
 
 
-        def interrupt_confirm(self):
-            """
-            Checks to see if there's a game in progress as defined
-            by the self.gameInProgress variable in the Application.
-            If there is, display a popup window asking the user to confirm whether
-            they want to interrupt the game in progress.
-            """
-            try:
-                curframe = inspect.currentframe()
-                calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of interrupt_confirm", caller=calframe[1][3])
-
-                # Check to see if there's a game in progress.
-                # If there is, prompt the user to confirm they want to stop the game.
-                if self.gameInProgress:
-                    if not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
-                        adapter.debug("End of interrupt_confirm")
-                        adapter.debug("    Returning False")
-                        return False
-                    else:
-                        adapter.debug("End of interrupt_confirm")
-                        adapter.debug("    Returning True")
-                        return True
-
-                adapter.debug("    Returning True")
-                adapter.debug("End of interrupt_confirm")
-                return True
-            except Exception as e:
-                adapter.exception(e)
-                raise
-
-
         def more_cards_confirm(self):
             """
             Checks to see if there's a game in progress as defined
@@ -589,7 +561,7 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of new_game", caller=calframe[1][3])
                 
-                if self.gameInProgress and not self.interrupt_confirm():
+                if self.gameInProgress and not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
                     adapter.debug("End of new_game (nothing done)")
                     return
 
@@ -829,7 +801,7 @@ try:
 
                 if not gameExists:
                     # Check to see if we're interrupting a game by doing this.
-                    if self.gameInProgress and not self.interrupt_confirm():
+                    if self.gameInProgress and not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
                         adapter.debug("End of create_new_bingo_file (nothing done)")
                         return
 
@@ -988,7 +960,7 @@ try:
                 adapter.debug("Start of load_bingo_game", caller=calframe[1][3])
 
                 # Check to see if there's already a game in progress.
-                if not self.interrupt_confirm():
+                if self.gameInProgress and not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
                     adapter.debug("End of load_bingo_game (nothing done)")
                     return
 
@@ -1020,7 +992,6 @@ try:
                 adapter.debug("Start of display_next_item", caller=calframe[1][3])
 
                 self.gameInProgress = True
-                self.set_bindings_buttons_menus(True)
 
                 # Remove the instructions if they're on screen.
                 if self.startText:
@@ -1082,6 +1053,8 @@ try:
                 if (self.bingoType == "pictures" and len(self.displayPictures) == 0) or (self.bingoType == "words" and len(self.words) == 0):
                     self.popup("That's all the " + self.bingoType + ". Someone better have a Bingo by now!", button1Text="Ok")
                     self.gameInProgress = False
+                
+                self.set_bindings_buttons_menus(True)
 
                 adapter.debug("End of display_next_item", caller=calframe[1][3])
             except Exception as e:
@@ -1221,9 +1194,9 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of popup: labelText=" + labelText + ", entry=" + str(entry) + ", button1Text=" + str(button1Text) + ", button2Text=" + str(button2Text), caller=calframe[1][3])
                 
-                p = PopupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
-                
                 self.set_bindings_buttons_menus(False)
+                
+                p = PopupWindow(self.master, labelText, entry=entry, button1Text=button1Text, button2Text=button2Text)
                     
                 self.master.wait_window(p.top)
 
@@ -1253,7 +1226,7 @@ try:
             try:
                 curframe = inspect.currentframe()
                 calframe = inspect.getouterframes(curframe, 2)
-                adapter.debug("Start of ctrl_w", caller=calframe[1][3])
+                adapter.debug("Start of keybind_call: call=" + call, caller=calframe[1][3])
 
                 if call == "w":
                     self.create_new_bingo_file(bingoType="words", gameExists=False)
@@ -1274,7 +1247,7 @@ try:
                 elif call == "Left":
                     self.display_previous_item()
 
-                adapter.debug("End of ctrl_w", caller=calframe[1][3])
+                adapter.debug("End of keybind_call", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1326,19 +1299,19 @@ try:
                         self.b1 = tk.Button(top, text=button1Text, font=("calibri", 16), command=lambda: self.cleanup(True))
                         
                     if entry:
-                        enable_binding("Return", lambda: self.cleanup("entry"))
+                        enable_binding("Return", lambda x: self.cleanup("entry"))
                     elif button1Text in ["Ok", "Yes"]:
-                        enable_binding("Return", lambda: self.cleanup(True))
+                        enable_binding("Return", lambda x: self.cleanup(True))
                         if button1Text == "Yes":
-                            enable_binding("y", lambda: self.cleanup(True))
+                            enable_binding("y", lambda x: self.cleanup(True))
 
                     self.b1.pack()
 
                 if button2Text:
-                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=lambda: self.cleanup(False))
+                    self.b2 = tk.Button(top, text=button2Text, font=("calibri", 16), command=lambda x: self.cleanup(False))
                     if button2Text == "No":
-                        enable_binding("Escape", lambda: self.cleanup(False))
-                        enable_binding("n", lambda: self.cleanup(False))
+                        enable_binding("Escape", lambda x: self.cleanup(False))
+                        enable_binding("n", lambda x: self.cleanup(False))
 
                     self.b2.pack()
             except Exception as e:
