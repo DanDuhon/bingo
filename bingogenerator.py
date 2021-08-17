@@ -767,8 +767,11 @@ try:
                 self.progress.place(relx=0.50, rely=0.80, anchor=tk.CENTER)
                 self.progress["value"] = 0
 
-                for c in range(cards):
-                    self.progress["value"] = ((c + 1) / cards) * 100
+                print(self.bingoCards)
+                existingCards = (len(self.bingoCards) - 1 if self.bingoCards else 0)
+
+                for c in range(existingCards, cards + existingCards):
+                    self.progress["value"] = ((c + 1) / (cards + existingCards)) * 100
                     root.update_idletasks()
                     # Create a card.
                     self.generate_html_card(c, freeSpace)
@@ -834,17 +837,17 @@ try:
                     # This is where the relevant files for this Bingo game will live.
                     workingDirName = os.path.splitext(os.path.basename(self.bingoFile))[0]
                     self.bingoFullPath = os.path.dirname(__file__) + "\\working_dir\\" + workingDirName
+
+                    # Delete existing files/folders.
+                    self.delete_unused_files_folders(self.bingoFullPath)
+                            
+                    if not os.path.exists(self.bingoFullPath + "\\bingo_cards"):
+                        adapter.debug("Creating " + str(self.bingoFullPath + "\\bingo_cards"))
+                        os.makedirs(self.bingoFullPath + "\\bingo_cards")
                 else:
-                    if not self.more_cards_confirm():
+                    if not self.popup("Do you really want to stop this game?", button1Text="Yes", button2Text="No"):
                         adapter.debug("End of create_new_bingo_file (nothing done)")
                         return
-
-                # Delete existing files/folders.
-                self.delete_unused_files_folders(self.bingoFullPath + ("\\bingo_cards" if gameExists else ""))
-                        
-                if not os.path.exists(self.bingoFullPath + "\\bingo_cards"):
-                    adapter.debug("Creating " + str(self.bingoFullPath + "\\bingo_cards"))
-                    os.makedirs(self.bingoFullPath + "\\bingo_cards")
 
                 if not gameExists:
                     # Create subfolders to house the different sizes of pictures.
@@ -1129,8 +1132,8 @@ try:
 
                 if not hasattr(self, "Create more bingo cards"):
                     self.moreBingoCards = ttk.Button(self)
-                    self.moreBingoCards["text"] = "Save bingo cards to PDF"
-                    self.moreBingoCards["command"] = self.save_bingo_cards
+                    self.moreBingoCards["text"] = "Create more bingo cards"
+                    self.moreBingoCards["command"] = lambda x: self.create_new_bingo_file(bingoType=self.bingoType, gameExists=True)
                     self.moreBingoCards.pack({"side": "left"})
                     self.buttons.add(self.moreBingoCards)
 
