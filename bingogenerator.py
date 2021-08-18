@@ -9,6 +9,7 @@ try:
     import fpdf
     import re
     import pickle
+    import webbrowser
     import tkinter as tk
     from tkinter import filedialog
     from tkinter import ttk
@@ -94,6 +95,21 @@ try:
                 self.gameInProgress = False
                 self.displayedHistoryPictures = []
                 self.historyCanvas = []
+                
+                menuBar = tk.Menu()
+                self.fileMenu = tk.Menu(menuBar, tearoff=0)
+                self.fileMenu.add_command(label="New word bingo cards", command=lambda: self.create_new_bingo_card_set(bingoType="words", gameExists=False), accelerator="Ctrl+W")
+                self.fileMenu.add_command(label="New picture bingo cards", command=lambda: self.create_new_bingo_card_set(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
+                self.fileMenu.add_command(label="Open bingo file", command=lambda: self.load_bingo_game(), accelerator="Ctrl+O")
+                self.fileMenu.add_separator()
+                self.fileMenu.add_command(label="New game", command=lambda: self.new_game())
+                self.fileMenu.add_command(label="Create more bingo cards", command=lambda: self.create_new_bingo_card_set(bingoType=self.bingoType, gameExists=True))
+                self.fileMenu.add_command(label="Save bingo cards to PDF", command=lambda: self.save_bingo_cards())
+                self.fileMenu.add_command(label="Open bingo cards folder", command=lambda: self.open_bingo_cards_folder())
+                self.fileMenu.add_separator()
+                self.fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
+                menuBar.add_cascade(label="File", menu=self.fileMenu)
+                root.config(menu=menuBar)
 
                 # Create the keyboard shortcuts.
                 self.set_bindings_buttons_menus(True)
@@ -158,23 +174,17 @@ try:
                     enable_binding("Control-o", lambda x: do_nothing())
 
                 if enable and len(self.calledItems) > 0:
-                    enable_binding("Control-n", lambda x: self.keybind_call("n"))
                     self.newGame["state"] = tk.NORMAL
-
-                    enable_binding("Control-c", lambda x: self.keybind_call("c"))
-                    self.moreBingoCards["state"] = tk.NORMAL
-
-                    enable_binding("Control-s", lambda x: self.keybind_call("s"))
-                    self.saveBingoCards["state"] = tk.NORMAL
+                    self.fileMenu.entryconfig("New game", state=tk.NORMAL)
+                    self.fileMenu.entryconfig("Create more bingo cards", state=tk.NORMAL)
+                    self.fileMenu.entryconfig("Save bingo cards to PDF", state=tk.NORMAL)
+                    self.fileMenu.entryconfig("Open bingo cards folder", state=tk.NORMAL)
                 else:
-                    enable_binding("Control-n", lambda x: do_nothing())
                     self.newGame["state"] = tk.DISABLED
-
-                    enable_binding("Control-c", lambda x: do_nothing())
-                    self.moreBingoCards["state"] = tk.DISABLED
-
-                    enable_binding("Control-s", lambda x: do_nothing())
-                    self.saveBingoCards["state"] = tk.DISABLED
+                    self.fileMenu.entryconfig("New game", state=tk.DISABLED)
+                    self.fileMenu.entryconfig("Create more bingo cards", state=tk.DISABLED)
+                    self.fileMenu.entryconfig("Save bingo cards to PDF", state=tk.DISABLED)
+                    self.fileMenu.entryconfig("Open bingo cards folder", state=tk.DISABLED)
 
                 if enable and len(self.calledItems) > 1:
                     enable_binding("Left", lambda x: self.keybind_call("Left"))
@@ -1117,19 +1127,19 @@ try:
                 calframe = inspect.getouterframes(curframe, 2)
                 adapter.debug("Start of create_buttons", caller=calframe[1][3])
 
-                if not hasattr(self, "Create more bingo cards"):
-                    self.moreBingoCards = ttk.Button(self)
-                    self.moreBingoCards["text"] = "Create more bingo cards"
-                    self.moreBingoCards["command"] = lambda: self.create_new_bingo_card_set(bingoType=self.bingoType, gameExists=True)
-                    self.moreBingoCards.pack({"side": "left"})
-                    self.buttons.add(self.moreBingoCards)
+                # if not hasattr(self, "Create more bingo cards"):
+                #     self.moreBingoCards = ttk.Button(self)
+                #     self.moreBingoCards["text"] = "Create more bingo cards"
+                #     self.moreBingoCards["command"] = lambda: self.create_new_bingo_card_set(bingoType=self.bingoType, gameExists=True)
+                #     self.moreBingoCards.pack({"side": "left"})
+                #     self.buttons.add(self.moreBingoCards)
 
-                if not hasattr(self, "Save bingo cards to PDF"):
-                    self.saveBingoCards = ttk.Button(self)
-                    self.saveBingoCards["text"] = "Save bingo cards to PDF"
-                    self.saveBingoCards["command"] = self.save_bingo_cards
-                    self.saveBingoCards.pack({"side": "left"}, padx=(10, 100))
-                    self.buttons.add(self.saveBingoCards)
+                # if not hasattr(self, "Save bingo cards to PDF"):
+                #     self.saveBingoCards = ttk.Button(self)
+                #     self.saveBingoCards["text"] = "Save bingo cards to PDF"
+                #     self.saveBingoCards["command"] = self.save_bingo_cards
+                #     self.saveBingoCards.pack({"side": "left"}, padx=(10, 100))
+                #     self.buttons.add(self.saveBingoCards)
 
                 if not hasattr(self, "previousItem"):
                     self.previousItem = ttk.Button(self)
@@ -1238,6 +1248,23 @@ try:
                     self.display_previous_item()
 
                 adapter.debug("End of keybind_call", caller=calframe[1][3])
+            except Exception as e:
+                adapter.exception(e)
+                raise
+
+
+        def open_bingo_cards_folder(self):
+            """
+            Opens the folder that contains the bingo card files.
+            """
+            try:
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 2)
+                adapter.debug("Start of open_bingo_cards_folder", caller=calframe[1][3])
+
+                webbrowser.open(os.path.realpath(self.bingoFullPath + "\\bingo_cards\\"))
+
+                adapter.debug("End of open_bingo_cards_folder", caller=calframe[1][3])
             except Exception as e:
                 adapter.exception(e)
                 raise
@@ -1406,16 +1433,6 @@ try:
     canvas.pack()
     root.resizable(False, False)
     app = Application(master=root)
-    menuBar = tk.Menu(root)
-    fileMenu = tk.Menu(menuBar, tearoff=0)
-    fileMenu.add_command(label="New word bingo cards", command=lambda: app.create_new_bingo_card_set(bingoType="words", gameExists=False), accelerator="Ctrl+W")
-    fileMenu.add_command(label="New picture bingo cards", command=lambda: app.create_new_bingo_card_set(bingoType="pictures", gameExists=False), accelerator="Ctrl+P")
-    fileMenu.add_command(label="Open bingo file", command=lambda: app.load_bingo_game(), accelerator="Ctrl+O")
-    fileMenu.add_separator()
-    fileMenu.add_command(label="Quit", command=root.quit, accelerator="Ctrl+Q")
-
-    menuBar.add_cascade(label="File", menu=fileMenu)
-    root.config(menu=menuBar)
     app.mainloop()
     adapter.debug("Closing application")
     root.destroy()
