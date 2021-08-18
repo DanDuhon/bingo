@@ -264,7 +264,7 @@ try:
                 if self.bingoType == "pictures":
                     ps = random.sample(self.cardPictures, 25)
                 elif self.bingoType == "words":
-                    ps = random.sample(self.words, 25)
+                    ps = random.sample(self.words + self.calledItems, 25)
                     
                 res = "<table>\n"
                     
@@ -294,13 +294,13 @@ try:
                 outFile.close()
 
                 # Convert the HTML file to an image.
-                imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".jpg", config=config)
+                imgkit.from_file(self.bingoFullPath + "\\" + "bingo_card.html", self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".png", config=config, options=options)
 
                 # Delete the HTML file.
                 os.remove(self.bingoFullPath + "\\" + "bingo_card.html")
 
                 # Add the location of the image to what will be saved in the .bingo file.
-                self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".jpg")
+                self.bingoCards.append(self.bingoFullPath + "\\bingo_cards\\bingo_generator_" + str(cardNum) + ".png")
 
                 adapter.debug("End of generate_html_card", caller=calframe[1][3])
             except Exception as e:
@@ -333,8 +333,9 @@ try:
                 pdf = fpdf.FPDF()
                 for i, card in enumerate(self.bingoCards):
                     self.progress["value"] = ((i + 1) / len(self.bingoCards)) * 100
+                    root.update_idletasks()
                     pdf.add_page(orientation="Landscape")
-                    pdf.image(card, w=193)
+                    pdf.image(card, w=(225 if self.bingoType == "pictures" else 500), x=(-10 if self.bingoType == "pictures" else -100), y=(0 if self.bingoType == "pictures" else -8.5))
                 pdf.output(output.name, "F")
 
                 # Ditch the progress bar.
@@ -463,7 +464,7 @@ try:
 
                 pickleDict = {
                     "bingoCards": self.bingoCards,
-                    "words": self.words,
+                    "words": (self.words + self.calledItems if self.bingoType == "words" else self.words),
                     "historyPictures": self.historyPictures,
                     "displayPictures": self.displayPictures,
                     "cardPictures": self.cardPictures,
@@ -756,7 +757,7 @@ try:
                 existingCards = (len(self.bingoCards) if self.bingoCards else 0)
 
                 for c in range(existingCards, cards + existingCards):
-                    self.progress["value"] = ((c + 1) / (cards + existingCards)) * 100
+                    self.progress["value"] = ((c - existingCards + 1) / cards) * 100
                     root.update_idletasks()
                     # Create a card.
                     self.generate_html_card(c, freeSpace)
@@ -1391,6 +1392,7 @@ try:
     tail = "</body></html>"
 
     path_wkthmltoimage = os.path.dirname(__file__) + "\\" + r'wkhtmltopdf\bin\wkhtmltoimage.exe'
+    options = {"format": "png"}
     config = imgkit.config(wkhtmltoimage=path_wkthmltoimage)
 
     root = tk.Tk()
